@@ -1,0 +1,8 @@
+__pycache__
+*.swp
+*.swo
+*.egg-info
+storage
+tmp*dump*
+ltron_torch
+venv
