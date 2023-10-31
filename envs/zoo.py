@@ -178,9 +178,14 @@ class MatchingColorEnv(MiniGridEnv):
         )
         
         # modify the obsevation space with the extra 'observed_color' variable
-        self.observation_space['observed_color'] = Discrete(len(COLOR_TO_IDX))
-        self.observation_space['expert'] = self.action_space
-        self.observation_space['step'] = Discrete(self.max_steps)
+        self.observation_space = Dict({
+            "direction": self.observation_space["direction"],
+            "image": self.observation_space["image"],
+            "mission": self.observation_space["mission"],
+            "observed_color": Discrete(len(COLOR_TO_IDX)),
+            "expert": self.action_space,
+            "step": Discrete(self.max_steps)
+        })
         
         # mission
         self.mission = 'enter the door that has the same color as the balls'
@@ -204,7 +209,7 @@ class MatchingColorEnv(MiniGridEnv):
         obs['expert'] = self.compute_expert_action()
         obs['step'] = self.step_count
         
-        return obs
+        return obs, {}
     
     def step(self, action):
         *orti, = super().step(action)
@@ -224,7 +229,7 @@ class MatchingColorEnv(MiniGridEnv):
             if (ax == tx and abs(ay-ty) == 1) or (ay == ty and abs(ax-tx) == 1):
                 reward = self._reward()
         
-        return obs, reward, term, info
+        return obs, reward, term, term, info
     
     def update_goal_pos(self):
         full_grid = self.grid.encode()
@@ -342,7 +347,7 @@ class DoorKeyExpertEnv(DoorKeyEnv):
         obs['step'] = self.step_count
         obs['switching_time'] = self.switching_time
         
-        return obs
+        return obs, {}
     
     def step(self, action):
         obs, reward, term, info = super().step(action)
@@ -351,7 +356,7 @@ class DoorKeyExpertEnv(DoorKeyEnv):
         obs['step'] = self.step_count
         obs['switching_time'] = self.switching_time
         
-        return obs, reward, term, info
+        return obs, reward, term, term, info
     
     def compute_expert_action(self):
         tx, ty = self.goal_pos

@@ -294,7 +294,7 @@ class Distill:
                     action[0] = int(override_action)
             
             # step
-            obs, reward, done, _ = self.env.step(action.cpu().numpy())
+            obs, reward, done, _, _ = self.env.step(action.cpu().numpy())
             
             # compute reward surrogate
             surrogate_reward = numpy.zeros((len(reward),))
@@ -776,4 +776,4 @@ class Distill:
         return batches_starting_indexes
     
     def cleanup(self):
-        self.env.cleanup()
+        pass

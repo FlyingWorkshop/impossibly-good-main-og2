@@ -36,7 +36,7 @@ class Evaluator:
         self.logs = []
     
     def cleanup(self):
-        self.env.cleanup()
+        pass
     
     def evaluate(self, num_episodes, argmax=False):
         log = {
@@ -75,7 +75,7 @@ class Evaluator:
             else:
                 actions = dist.sample().cpu().numpy()
         
-            obss, rewards, dones, _ = self.env.step(actions)
+            obss, rewards, dones, _, _ = self.env.step(actions)
             
             masks = 1 - torch.tensor(
                 dones, dtype=torch.float, device=self.device)

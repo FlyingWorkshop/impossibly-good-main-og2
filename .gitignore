@@ -6,3 +6,4 @@ storage
 tmp*dump*
 ltron_torch
 venv
+out

@@ -4,6 +4,7 @@ import os
 import argparse
 import sys
 import json
+sys.path.append(".")
 
 import torch
 
