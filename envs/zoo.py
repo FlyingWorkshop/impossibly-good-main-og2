@@ -142,6 +142,21 @@ def register_impossibly_good_envs():
         id='ImpossiblyGood-DoorKeyExpert-5x5-v0',
         entry_point='envs.zoo:DoorKeyExpertEnv5x5',
     )
+    # TigerDoor and LightDark are subclassed from meta_exploration.MetaExplorationEnv
+    register(
+        id='ImpossiblyGood-TigerDoor-v0',
+        entry_point='envs.tiger:TigerDoorEnv',
+    )
+    register(
+        id='ImpossiblyGood-LightDark-v0',
+        entry_point='envs.lightdark:LightDarkEnv',
+    )
+
+    # Miniworld
+    register(
+        id='ImpossiblyGood-Construction-v0',
+        entry_point='envs.construction:ELFConstructionEnv'
+    )
 
 class MatchingColorEnv(MiniGridEnv):
     def __init__(self,

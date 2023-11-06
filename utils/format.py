@@ -52,7 +52,29 @@ def get_obss_preprocessor(obs_space, image_dtype=torch.float):
                     [obs['switching_time'] for obs in obss], device=device)
             return torch_ac.DictList(processed)
         preprocess_obss.vocab = vocab
-    
+
+    # Check if DREAM-POMDP env
+    elif (
+        isinstance(obs_space, gym.spaces.Dict) and
+        "observation" in obs_space.spaces.keys()
+    ):
+        
+        def preprocess_obss(obss, device=None):
+            processed = {
+                "observation": preprocess_long(
+                    numpy.array([obs['observation'] for obs in obss]),
+                    device=device,
+                ),
+                "expert": preprocess_long(
+                    numpy.array([obs['expert'] for obs in obss]),
+                    device=device,
+                ),
+                "step": preprocess_int(
+                    numpy.array([obs['step'] for obs in obss]),
+                    device=device
+                )
+            }
+            return torch_ac.DictList(processed)
     else:
         raise ValueError("Unknown observation space: " + str(obs_space))
 
@@ -66,6 +88,9 @@ def preprocess_images(images, device=None, dtype=torch.float):
 
 def preprocess_long(x, device=None):
     return torch.tensor(x, device=device, dtype=torch.long)
+
+def preprocess_int(x, device=None):
+    return torch.tensor(x, device=device, dtype=torch.int16)
 
 def preprocess_texts(texts, vocab, device=None):
     var_indexed_texts = []

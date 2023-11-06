@@ -263,7 +263,9 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                self.env.envs[0].render('human')
+                # self.env.envs[0].render('human')
+                self.env.envs[0].render()
+
                 if self.explorer_model and use_explorer[0]:
                     print('EXPLORING:',
                         preprocessed_obs.step[0].item(),

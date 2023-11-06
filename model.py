@@ -21,6 +21,10 @@ NUM_COLORS = max(COLOR_TO_IDX.values())+1
 
 from torch_ac.model import ACModel, RecurrentACModel
 
+from embed import SimpleGridStateEmbedder
+from envs.tiger import TigerDoorEnv
+from envs.lightdark import LightDarkEnv
+
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
 def init_params(m):
     classname = m.__class__.__name__
@@ -30,6 +34,33 @@ def init_params(m):
             m.weight.data.pow(2).sum(1, keepdim=True))
         if m.bias is not None:
             m.bias.data.fill_(0)
+
+
+class GridEncoder(Module):
+    def __init__(self, env, embed_dim) -> None:
+        super().__init__()
+        self._embedder = SimpleGridStateEmbedder(env.observation_space['observation'], embed_dim)
+
+    def forward(self, observation):
+        x = self._embedder(tuple(observation))
+        return x
+
+
+class DREAMEncoder(Module):
+    factory = {
+        LightDarkEnv: GridEncoder,
+        TigerDoorEnv: GridEncoder,
+    }
+
+    def __init__(self, env, embedding_channels=16):
+        super().__init__()
+        self.out_channels = embedding_channels * env.obs_len
+        self.embedder = self.factory[type(env)](env, self.out_channels)
+
+    def forward(self, obs):
+        x = self.embedder(obs.observation)
+        return x
+
 
 class ImpossiblyGoodEmbeddingEncoder(Module):
     def __init__(self, h, w, embedding_channels=16):
@@ -140,8 +171,14 @@ class ImpossiblyGoodACModel(Module):
         embedding_channels=16,
         hidden_channels=256,
         include_advisor_aux_head=False,
+        env=None,
     ):
         super().__init__()
+        if isinstance(env, (TigerDoorEnv, LightDarkEnv)):
+            self.encoder = DREAMEncoder(env, embedding_channels=embedding_channels)
+        else:
+            self.encoder = ImpossiblyGoodEmbeddingEncoder(
+                h, w, embedding_channels=embedding_channels)
         self.include_advisor_aux_head = include_advisor_aux_head
         self.encoder = ImpossiblyGoodEmbeddingEncoder(
             h, w, embedding_channels=embedding_channels)
@@ -175,6 +212,7 @@ class ImpossiblyGoodFollowerExplorerModel(Module):
         num_actions,
         embedding_channels=16,
         hidden_channels=16,
+        env=None,
     ):
         super().__init__()
         
@@ -185,6 +223,7 @@ class ImpossiblyGoodFollowerExplorerModel(Module):
             num_actions,
             embedding_channels=embedding_channels,
             hidden_channels=hidden_channels,
+            env=env,
         )
         
         # explorer
@@ -194,6 +233,7 @@ class ImpossiblyGoodFollowerExplorerModel(Module):
             num_actions,
             embedding_channels=embedding_channels,
             hidden_channels=hidden_channels,
+            env=env,
         )
     
     def forward(self, obs):
@@ -314,18 +354,26 @@ class ImpossiblyGoodACPolicy(Module, ACModel):
 class ImpossiblyGoodFollowerExplorerPolicy(Module, RecurrentACModel):
     recurrent = False
     use_memory = False
-    def __init__(self,
-        obs_space,
+    def __init__(self, obs_space,
         act_space,
         embedding_channels=16,
-        hidden_channels=256
+        hidden_channels=256,
+        env=None,
     ):
         super().__init__()
         
-        h, w = obs_space['image'][:2]
-        num_actions = act_space.n
-        self.model = ImpossiblyGoodFollowerExplorerModel(
-            h, w, num_actions, embedding_channels, hidden_channels)
+        keys = obs_space.keys() if isinstance(obs_space, dict) else obs_space.spaces.keys()
+        if 'image' in keys:
+            h, w = obs_space['image'][:2]
+            num_actions = act_space.n
+            self.model = ImpossiblyGoodFollowerExplorerModel(
+                h, w, num_actions, embedding_channels, hidden_channels)
+        else:
+            h = env.height
+            w = env.width
+            num_actions = act_space.n
+            self.model = ImpossiblyGoodFollowerExplorerModel(
+                h, w, num_actions, embedding_channels, hidden_channels, env=env)
     
     def forward(self, obs, memory=None):
         return self.model(obs)
