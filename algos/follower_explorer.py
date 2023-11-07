@@ -168,10 +168,14 @@ class FEAlgo:
         )
         
     def collect_experiences(self):
+        renders = {}
         if self.expert_frames_per_proc:
-            expert_exp, expert_log = self.expert_algo.collect_experiences()
-        follower_exp, follower_log = self.follower_algo.collect_experiences()
-        explorer_exp, explorer_log = self.explorer_algo.collect_experiences()
+            expert_exp, expert_log, expert_renders = self.expert_algo.collect_experiences()
+            renders["expert"] = expert_renders
+        follower_exp, follower_log, follower_renders = self.follower_algo.collect_experiences()
+        explorer_exp, explorer_log, explorer_renders = self.explorer_algo.collect_experiences()
+        renders["follower"] = follower_renders
+        renders["explorer"] = explorer_renders
         
         if not self.override_switching_horizon:
             if len(explorer_log['num_frames_per_episode']):
@@ -189,7 +193,7 @@ class FEAlgo:
             combined_exp['expert'] = expert_exp
             combined_log.update(expert_log)
         
-        return combined_exp, combined_log
+        return combined_exp, combined_log, renders
     
     def update_parameters(self, exps):
         if self.expert_frames_per_proc:

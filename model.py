@@ -174,14 +174,14 @@ class ImpossiblyGoodACModel(Module):
         env=None,
     ):
         super().__init__()
+
         if isinstance(env, (TigerDoorEnv, LightDarkEnv)):
             self.encoder = DREAMEncoder(env, embedding_channels=embedding_channels)
         else:
             self.encoder = ImpossiblyGoodEmbeddingEncoder(
                 h, w, embedding_channels=embedding_channels)
+        
         self.include_advisor_aux_head = include_advisor_aux_head
-        self.encoder = ImpossiblyGoodEmbeddingEncoder(
-            h, w, embedding_channels=embedding_channels)
         self.backbone = ImpossiblyGoodBackbone(
             self.encoder.out_channels, hidden_channels=hidden_channels)
         self.actor_decoder = ImpossiblyGoodActorDecoder(

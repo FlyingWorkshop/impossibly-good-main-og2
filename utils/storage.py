@@ -47,10 +47,34 @@ def get_status(model_dir, i=None):
     return data
 
 
+def get_render_path(title, model_dir, i=None):
+    if i is None or i == 'NEW':
+        mode = i
+        unnumbered_path = os.path.join(model_dir, f'{title}.gif')
+        if os.path.exists(unnumbered_path):
+            return unnumbered_path
+        i = 0
+        while os.path.exists(os.path.join(model_dir, f'{title}_{i}.gif')):
+            i += 1
+        
+        if mode is None:
+            i -= 1
+    
+    return os.path.join(model_dir, f"{title}_{i}.gif")
+
+
 def save_status(status, model_dir, i):
     path = get_status_path(model_dir, i)
     utils.create_folders_if_necessary(path)
     torch.save(status, path)
+
+
+def save_render(render, model_dir, i):
+    for key, value in render.items():
+        value = [v.image() for v in value]
+        path = get_render_path(key, model_dir, i)
+        utils.create_folders_if_necessary(path)
+        value[0].save(path, save_all=True, append_images=value[1:], duration=375, loop=0, optimize=True, quality=20)
 
 
 def get_vocab(model_dir):

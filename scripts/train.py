@@ -186,9 +186,14 @@ if __name__ == '__main__':
         if 'vizdoom' in args.env.lower():
             acmodel = ImpossiblyGoodVizdoomFollowerExplorerPolicy(
                 obs_space, envs[0].action_space, use_memory=args.mem)
-        else:
+        elif 'construction' in args.env.lower():
+            acmodel = ImpossiblyGoodVizdoomFollowerExplorerPolicy(
+                obs_space, envs[0].action_space, use_memory=args.mem)
+        elif "tiger" in args.env.lower() or "light" in args.env.lower():
             acmodel = ImpossiblyGoodFollowerExplorerPolicy(
-                obs_space, envs[0].action_space)
+                obs_space, envs[0].action_space, env=envs[0].env.env)
+        else:
+            acmodel = ImpossiblyGoodFollowerExplorerPolicy(obs_space, envs[0].action_space)
     else:
         if args.arch == 'ig':
             if 'vizdoom' in args.env.lower():
@@ -616,7 +621,7 @@ if __name__ == '__main__':
             # Update model parameters
             
             update_start_time = time.time()
-            exps, logs1 = algo.collect_experiences()
+            exps, logs1, render = algo.collect_experiences()
             logs2 = algo.update_parameters(exps)
             logs = {**logs1, **logs2}
             update_end_time = time.time()
@@ -754,6 +759,7 @@ if __name__ == '__main__':
                 if hasattr(preprocess_obss, "vocab"):
                     status["vocab"] = preprocess_obss.vocab.vocab
                 utils.save_status(status, model_dir, i='NEW')
+                utils.save_render(render, model_dir, i='NEW')
                 txt_logger.info("Status saved")
                 
                 with open(eval_log_file, 'w') as f:

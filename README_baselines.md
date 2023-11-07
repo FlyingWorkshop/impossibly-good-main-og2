@@ -30,8 +30,8 @@ python scripts/evaluate.py --env='ImpossiblyGood-TigerDoor-v0' --model='storage-
 # Testing on Workstations
 
 ```bash
-ssh loganmb@sc.stanford.edu
+ssh $USER@sc.stanford.edu
 srun --account=iris -p iris-interactive --mem=8GB --gres=gpu:1 --pty --exclude=iris5,iris6,iris7 bash
-cd /iris/u/loganmb/impossibly-good-main
+cd /iris/u/$USER/impossibly-good-main
 source venv/bin/activate
 ```

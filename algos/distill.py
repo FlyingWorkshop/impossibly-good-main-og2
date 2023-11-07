@@ -7,6 +7,9 @@ from torch.nn.functional import cross_entropy, kl_div
 from torch.distributions import Categorical
 
 from torch_ac.utils import DictList, ParallelEnv
+from envs.tiger import TigerDoorEnv
+from envs.lightdark import LightDarkEnv
+
 
 class Distill:
     def __init__(self,
@@ -173,6 +176,8 @@ class Distill:
         self.model.value_mean = torch.zeros(1, device=self.device)
     
     def collect_experiences(self):
+        renders = []
+
         for i in range(self.num_frames_per_proc):
             
             # convert observations to tensors
@@ -263,20 +268,22 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                # self.env.envs[0].render('human')
-                self.env.envs[0].render()
-
-                if self.explorer_model and use_explorer[0]:
-                    print('EXPLORING:',
-                        preprocessed_obs.step[0].item(),
-                        self.switching_time[0].item()
-                    )
-                    time.sleep(0.25)
-                print('Expert:', self.obs[0]['expert'])
-                if hasattr(self.env.envs[0], 'Actions'):
-                    print('Action:', self.env.envs[0].Actions(action[0].item()))
+                if isinstance(self.env.envs[0].env.env, (TigerDoorEnv, LightDarkEnv)):
+                    render = self.env.envs[0].render('human')
+                    renders.append(render)
                 else:
-                    print('Action:', action[0].item())
+                    self.env.envs[0].render()
+                    if self.explorer_model and use_explorer[0]:
+                        print('EXPLORING:',
+                            preprocessed_obs.step[0].item(),
+                            self.switching_time[0].item()
+                        )
+                        time.sleep(0.25)
+                    print('Expert:', self.obs[0]['expert'])
+                    if hasattr(self.env.envs[0], 'Actions'):
+                        print('Action:', self.env.envs[0].Actions(action[0].item()))
+                    else:
+                        print('Action:', action[0].item())
             if self.pause:
                 command = input()
                 if command == 'breakpoint':
@@ -297,6 +304,9 @@ class Distill:
             
             # step
             obs, reward, done, _, _ = self.env.step(action.cpu().numpy())
+
+            if self.render and done and isinstance(self.env.envs[0].env.env, (TigerDoorEnv, LightDarkEnv)):
+                renders.append(self.env.envs[0].last_render)
             
             # compute reward surrogate
             surrogate_reward = numpy.zeros((len(reward),))
@@ -490,7 +500,7 @@ class Distill:
         self.log_reshaped_return = self.log_reshaped_return[-self.num_procs:]
         self.log_num_frames = self.log_num_frames[-self.num_procs:]
 
-        return exps, logs
+        return exps, logs, renders
     
     def update_parameters(self, exps):
         
