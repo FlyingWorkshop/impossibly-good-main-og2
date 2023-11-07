@@ -13,7 +13,6 @@ class LightDarkEnv(PrivilegedGridEnv):
 
     def __init__(self, env_id=0, wrapper=None, max_steps=20, mode=None):
         super().__init__(env_id, wrapper, max_steps, mode=mode)
-        self.max_steps = self._max_steps
         self.obs_len = 2
 
     def _observation_space(self):

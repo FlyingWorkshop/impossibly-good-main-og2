@@ -191,7 +191,7 @@ if __name__ == '__main__':
                 obs_space, envs[0].action_space, use_memory=args.mem)
         elif "tiger" in args.env.lower() or "light" in args.env.lower():
             acmodel = ImpossiblyGoodFollowerExplorerPolicy(
-                obs_space, envs[0].action_space, env=envs[0].env.env)
+                obs_space, envs[0].action_space, env=envs[0])
         else:
             acmodel = ImpossiblyGoodFollowerExplorerPolicy(obs_space, envs[0].action_space)
     else:

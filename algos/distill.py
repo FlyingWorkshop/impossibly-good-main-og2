@@ -268,7 +268,7 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                if isinstance(self.env.envs[0].env.env, (TigerDoorEnv, LightDarkEnv)):
+                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv)):
                     render = self.env.envs[0].render('human')
                     renders.append(render)
                 else:
@@ -305,7 +305,7 @@ class Distill:
             # step
             obs, reward, done, _, _ = self.env.step(action.cpu().numpy())
 
-            if self.render and done and isinstance(self.env.envs[0].env.env, (TigerDoorEnv, LightDarkEnv)):
+            if self.render and done and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv)):
                 renders.append(self.env.envs[0].last_render)
             
             # compute reward surrogate

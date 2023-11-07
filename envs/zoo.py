@@ -146,16 +146,24 @@ def register_impossibly_good_envs():
     register(
         id='ImpossiblyGood-TigerDoor-v0',
         entry_point='envs.tiger:TigerDoorEnv',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-LightDark-v0',
         entry_point='envs.lightdark:LightDarkEnv',
+        order_enforce=False,
+    )
+    register(
+        id='ImpossiblyGood-NonstationaryMap-v0',
+        entry_point='envs.city:NonstationaryMapGridEnv',
+        order_enforce=False,
     )
 
     # Miniworld
     register(
         id='ImpossiblyGood-Construction-v0',
-        entry_point='envs.construction:ELFConstructionEnv'
+        entry_point='envs.construction:ELFConstructionEnv',
+        order_enforce=False,
     )
 
 class MatchingColorEnv(MiniGridEnv):
