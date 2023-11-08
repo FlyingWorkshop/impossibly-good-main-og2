@@ -5,6 +5,7 @@ import numpy as np
 
 from envs import grid
 from envs import meta_exploration
+from envs.grid import Action
 
 
 class InstructionWrapper(meta_exploration.InstructionWrapper):
@@ -19,7 +20,7 @@ class InstructionWrapper(meta_exploration.InstructionWrapper):
 
   def _instruction_observation_space(self):
     return gym.spaces.Box(
-        np.array([0, 0]), np.array([self.width, self.height]), dtype=np.int)
+        np.array([0, 0]), np.array([self.width, self.height]), dtype=int)
 
   def _reward(self, instruction_state, action, original_reward):
     del original_reward
@@ -123,7 +124,7 @@ class CityGridEnv(grid.GridEnv):
   def _env_id_space(self):
     low = np.array([0])
     high = np.array([len(self._bus_permutations)])
-    dtype = np.int
+    dtype = int
     return low, high, dtype
 
   @classmethod
@@ -202,7 +203,13 @@ class NonstationaryMapGridEnv(MapGridEnv):
     assert mode in ("all-env-ids", "env_id", None)
     self._mode = mode
     self._privileged_info = None
-    self.max_steps = max_steps
+
+    # added for ELF
+    self.last_action = None
+    self.last_reward = None
+    self._rng = None
+    self.max_steps = self._max_steps
+    self.obs_len = 4
 
   @property
   def action_space(self):
@@ -264,13 +271,39 @@ class NonstationaryMapGridEnv(MapGridEnv):
     self._steps_since_switch += 1
     return super()._step(action)
 
+  def reset(self, seed=None):
+      # we do this render so that we capture the last timestep in episodes
+      if hasattr(self, "_agent_pos"):
+          self.last_render = self.render()
+
+      # create new env_id before calling super reset (which places objects)
+      if seed is not None:
+          self._rng = np.random.RandomState(seed)
+      assert self._rng is not None
+      self._env_id = self.create_env_id(self._rng.randint(1e5))
+      
+      obs = self._reset()
+
+      # rendering
+      self.last_reward = None
+      self.last_action = None
+
+      return obs, {}
+
+  def step(self, action):
+    obs, reward, done, info = self._step(action)
+    self.last_action = Action(action)
+    self.last_reward = reward
+    self.last_render = self.render()
+    return obs, reward, done, done, info
+
   @classmethod
   def instruction_wrapper(cls):
     return NonstationaryInstructionWrapper
 
   def _privileged_info_space(self):
     if self._mode is None:
-      return np.array([0]), np.array([1]), np.int
+      return np.array([0]), np.array([1]), int
 
     if self._mode == "env_id":
       low, high, dtype = self._env_id_space()
@@ -280,6 +313,7 @@ class NonstationaryMapGridEnv(MapGridEnv):
       high = high.repeat(self._max_steps)
     return low, high, dtype
 
+  # NOTE: not really used
   @property
   def observation_space(self):
     observation_low, observation_high, _ = self._observation_space()
@@ -294,5 +328,27 @@ class NonstationaryMapGridEnv(MapGridEnv):
 
   def render(self, mode="human"):
     image = super().render(mode)
-    image.write_text(f"Privileged Info ({self._mode}): {self._privileged_info}")
+    optimal_action = self._compute_optimal_action(self.agent_pos)
+    image.write_text("Expert: {}".format(optimal_action.__repr__()))  # optimal next action
+    image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
+    image.write_text("Reward: {}".format(self.last_reward))  # last reward
+    image.write_text("Timestep: {}".format(self._steps))  # current timestep
+    # TODO: implement calc_next_pos
+    # if optimal_action is not None:
+    #   pos = self._calc_next_pos(self.agent_pos, optimal_action)
+    #   image.draw_rectangle(pos, 0.1, "indigo")
     return image
+
+  def _compute_optimal_action(self, pos: np.ndarray):
+    # TODO: implement real version of this
+    return Action.down
+
+  def _process_obs(self, obs):
+    optimal_action = self._compute_optimal_action(self.agent_pos)
+    obs = {"observation": obs, "expert": optimal_action, "step": self._steps}
+    return obs
+
+  def _gen_obs(self):
+    return self._process_obs(super()._gen_obs())
+
+    

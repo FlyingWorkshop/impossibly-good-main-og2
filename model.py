@@ -24,6 +24,7 @@ from torch_ac.model import ACModel, RecurrentACModel
 from embed import SimpleGridStateEmbedder
 from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
+from envs.city import NonstationaryMapGridEnv
 
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
 def init_params(m):
@@ -50,6 +51,7 @@ class DREAMEncoder(Module):
     factory = {
         LightDarkEnv: GridEncoder,
         TigerDoorEnv: GridEncoder,
+        NonstationaryMapGridEnv: GridEncoder,  # TODO: check w/ Annie
     }
 
     def __init__(self, env, embedding_channels=16):
@@ -175,7 +177,7 @@ class ImpossiblyGoodACModel(Module):
     ):
         super().__init__()
 
-        if isinstance(env, (TigerDoorEnv, LightDarkEnv)):
+        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryMapGridEnv)):
             self.encoder = DREAMEncoder(env, embedding_channels=embedding_channels)
         else:
             self.encoder = ImpossiblyGoodEmbeddingEncoder(

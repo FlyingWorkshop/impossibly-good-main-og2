@@ -202,7 +202,7 @@ class GridEnv(meta_exploration.MetaExplorationEnv, abc.ABC):
     low = np.array([0, 0, 0])
     # 1 for each type of object + 1 for no objects.
     high = np.array([self._width, self._height, len(all_objects) + 1])
-    return low, high, np.int
+    return low, high, int
 
   @abc.abstractmethod
   def _env_id_space(self):
@@ -431,10 +431,10 @@ class GridRender(object):
 
     start = np.array(
         [(position * 2 + 1) * rect_width,
-         (self._inventory.height - rect_width) // 2], dtype=np.int)
+         (self._inventory.height - rect_width) // 2], dtype=int)
     end = np.array(
         [((position + 1) * 2) * rect_width,
-         (self._inventory.height + rect_width) // 2], dtype=np.int)
+         (self._inventory.height + rect_width) // 2], dtype=int)
     self._inventory_draw.rectangle((tuple(start), tuple(end)), fill=color)
 
   def __deepcopy__(self, memo):
