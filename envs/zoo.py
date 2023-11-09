@@ -29,118 +29,147 @@ def register_impossibly_good_envs():
     register(
         id='ImpossiblyGood-ExampleOne-5x5-v0',
         entry_point='envs.zoo:ExampleOne5x5',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleOne-7x7-v0',
         entry_point='envs.zoo:ExampleOne7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-SingleBranch-v0',
         entry_point='envs.zoo:ExampleOne7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleOne-9x9-v0',
         entry_point='envs.zoo:ExampleOne9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleTwo-7x7-v0',
         entry_point='envs.zoo:ExampleTwo7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-Backtrack1-v0',
         entry_point='envs.zoo.ExampleTwo7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleTwoEasy-7x7-v0',
         entry_point='envs.zoo:ExampleTwoEasy7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleTwoMedium-7x7-v0',
         entry_point='envs.zoo:ExampleTwoMedium7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleTwo-9x9-v0',
         entry_point='envs.zoo:ExampleTwo9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-Backtrack2-v0',
         entry_point='envs.zoo:ExampleTwo9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleThree-7x7-v0',
         entry_point='envs.zoo:ExampleThree7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-EarlyExplore1-v0',
         entry_point='envs.zoo:ExampleThree7x7',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleThreeEasy-9x9-v0',
         entry_point='envs.zoo:ExampleThreeEasy9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-EarlyExplore2-v0',
         entry_point='envs.zoo:ExampleThreeEasy9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleThreeMed-9x9-v0',
         entry_point='envs.zoo:ExampleThreeMed9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-EarlyExplore3-v0',
         entry_point='envs.zoo:ExampleThreeMed9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleThreeHard-9x9-v0',
         entry_point='envs.zoo:ExampleThreeHard9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleFour-9x9-v0',
         entry_point='envs.zoo:ExampleFour9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-LateExplore-v0',
         entry_point='envs.zoo:ExampleFour9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleFourHard-9x9-v0',
         entry_point='envs.zoo:ExampleFourHard9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleFive-9x9-v0',
         entry_point='envs.zoo:ExampleFive9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-Open-v0',
         entry_point='envs.zoo:ExampleFive9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleSix-9x9-v0',
         entry_point='envs.zoo:ExampleSix9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleSixEasy-9x9-v0',
         entry_point='envs.zoo:ExampleSixEasy9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleSeven-9x9-v0',
         entry_point='envs.zoo:ExampleSeven9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleEight-9x9-v0',
         entry_point='envs.zoo:ExampleEight9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleEightHard-9x9-v0',
         entry_point='envs.zoo:ExampleEightHard9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-ExampleNine-9x9-v0',
         entry_point='envs.zoo:ExampleNine9x9',
+        order_enforce=False,
     )
     register(
         id='ImpossiblyGood-DoorKeyExpert-5x5-v0',
         entry_point='envs.zoo:DoorKeyExpertEnv5x5',
+        order_enforce=False,
     )
     # TigerDoor and LightDark are subclassed from meta_exploration.MetaExplorationEnv
     register(

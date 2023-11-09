@@ -71,7 +71,6 @@ def save_status(status, model_dir, i):
 
 def save_render(render, model_dir, i):
     for key, value in render.items():
-        value = [v.image() for v in value]
         path = get_render_path(key, model_dir, i)
         utils.create_folders_if_necessary(path)
         value[0].save(path, save_all=True, append_images=value[1:], duration=375, loop=0, optimize=True, quality=20)

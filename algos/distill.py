@@ -1,4 +1,5 @@
 import time
+from PIL import Image
 
 import numpy
 
@@ -270,21 +271,23 @@ class Distill:
             
             if self.render:
                 if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryMapGridEnv)):
-                    render = self.env.envs[0].render('human')
+                    render = self.env.envs[0].render('human').image()
                     renders.append(render)
                 else:
-                    self.env.envs[0].render()
-                    if self.explorer_model and use_explorer[0]:
-                        print('EXPLORING:',
-                            preprocessed_obs.step[0].item(),
-                            self.switching_time[0].item()
-                        )
-                        time.sleep(0.25)
-                    print('Expert:', self.obs[0]['expert'])
-                    if hasattr(self.env.envs[0], 'Actions'):
-                        print('Action:', self.env.envs[0].Actions(action[0].item()))
-                    else:
-                        print('Action:', action[0].item())
+                    self.env.envs[0].render_mode = 'rgb_array'
+                    img = self.env.envs[0].render()
+                    renders.append(Image.fromarray(img))
+                    # if self.explorer_model and use_explorer[0]:
+                    #     print('EXPLORING:',
+                    #         preprocessed_obs.step[0].item(),
+                    #         self.switching_time[0].item()
+                    #     )
+                    #     time.sleep(0.25)
+                    # print('Expert:', self.obs[0]['expert'])
+                    # if hasattr(self.env.envs[0], 'Actions'):
+                    #     print('Action:', self.env.envs[0].Actions(action[0].item()))
+                    # else:
+                    #     print('Action:', action[0].item())
             if self.pause:
                 command = input()
                 if command == 'breakpoint':
@@ -307,7 +310,7 @@ class Distill:
             obs, reward, done, _, _ = self.env.step(action.cpu().numpy())
 
             if self.render and done and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryMapGridEnv)):
-                renders.append(self.env.envs[0].last_render)
+                renders.append(self.env.envs[0].last_render.image())
             
             # compute reward surrogate
             surrogate_reward = numpy.zeros((len(reward),))

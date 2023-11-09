@@ -728,7 +728,7 @@ if __name__ == '__main__':
                 tb_writer.add_scalar(
                     'eval_frames_per_ep_max', frame_stats['max'], num_frames)
                 eval_logs.append(eval_log)
-            
+
             # Save status
 
             if args.save_interval > 0 and update % args.save_interval == 0:
