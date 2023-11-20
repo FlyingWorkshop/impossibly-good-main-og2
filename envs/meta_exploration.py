@@ -143,9 +143,8 @@ class InstructionWrapper(abc.ABC, gym.Wrapper):
     first_episode_no_instruction flag is set."""
     return np.array(self.observation_space["instructions"].low)
 
-  def reset(self):
+  def reset(self, seed=None):
     self._num_episodes += 1
-    state = super().reset()
 
     if self._num_episodes == 1 and self._first_episode_no_instruction:
       self._current_instructions = self._sentinel_instructions()
@@ -153,6 +152,8 @@ class InstructionWrapper(abc.ABC, gym.Wrapper):
       if not (self._num_episodes > 1 and self._fixed_instructions):
         self._current_instructions = self._generate_instructions(
             test=self._test)
+
+    state = super().reset(seed=seed)
 
     return InstructionState(
         state.observation, self._current_instructions, None, 0, False,
