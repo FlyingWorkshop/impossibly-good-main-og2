@@ -58,7 +58,7 @@ def get_obss_preprocessor(obs_space, image_dtype=torch.float):
         isinstance(obs_space, gym.spaces.Dict) and
         "observation" in obs_space.spaces.keys()
     ):
-        
+    
         def preprocess_obss(obss, device=None):
             processed = {
                 "observation": preprocess_long(

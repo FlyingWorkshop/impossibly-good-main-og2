@@ -10,7 +10,7 @@ from torch.distributions import Categorical
 from torch_ac.utils import DictList, ParallelEnv
 from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
-from envs.city import NonstationaryMapGridEnv
+from envs.city import NonstationaryInstructionWrapper
 
 
 class Distill:
@@ -270,7 +270,7 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryMapGridEnv)):
+                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
                     render = self.env.envs[0].render('human').image()
                     renders.append(render)
                 else:
@@ -309,7 +309,7 @@ class Distill:
             # step
             obs, reward, done, _, _ = self.env.step(action.cpu().numpy())
 
-            if self.render and done and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryMapGridEnv)):
+            if self.render and done and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
                 renders.append(self.env.envs[0].last_render.image())
             
             # compute reward surrogate

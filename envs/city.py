@@ -337,10 +337,17 @@ class NonstationaryMapGridEnv(MapGridEnv):
     image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
     image.write_text("Reward: {}".format(self.last_reward))  # last reward
     image.write_text("Timestep: {}".format(self._steps))  # current timestep
-    # TODO: implement calc_next_pos
-    # if optimal_action is not None:
-    #   pos = self._calc_next_pos(self.agent_pos, optimal_action)
-    #   image.draw_rectangle(pos, 0.1, "indigo")
+    if optimal_action in (Action.left, Action.right, Action.down, Action.up):
+      next_pos = np.copy(self.agent_pos)
+      if optimal_action == Action.left:
+          next_pos[0] -= 1
+      elif optimal_action == Action.up:
+          next_pos[1] += 1
+      elif optimal_action == Action.right:
+          next_pos[0] += 1
+      elif optimal_action == Action.down:
+          next_pos[1] -= 1
+      image.draw_rectangle(next_pos, 0.1, "indigo")
     return image
 
   def _get_goal_bus(self):
@@ -375,7 +382,8 @@ class NonstationaryMapGridEnv(MapGridEnv):
         nearest_dist = dist
         nearest_bus_source = None
     return nearest_bus, nearest_bus_source
-        
+
+  @staticmethod     
   def _get_dist(a, b):
     return np.linalg.norm(a - b, ord=1)
 
@@ -475,10 +483,10 @@ class NonstationaryMapGridEnv(MapGridEnv):
     # monkeypatch env_id to figure out where the bus goes
     true_env_id = self._env_id
     env_id = self._env_ids[interval_index]
-    self._bus_permutations(env_id)
+    self._switch_bus_permutation(env_id)
     for nearest_bus_source, _ in self._bus_sources:
       bus = self.get(nearest_bus_source)
-      if bus._destination == bus_destination:
+      if np.array_equal(bus._destination, bus_destination):
         break
     self._env_id = true_env_id
 
@@ -490,13 +498,10 @@ class NonstationaryMapGridEnv(MapGridEnv):
     return fastest_end_time
     
   def _compute_optimal_action(self, pos: np.ndarray):
-    """
-    TODO: handle case when x == 0 or y == 0 and agent is far from center, has to check both nearest bus sources
-    """
     if np.array_equal(pos, self._goal):
       return None
         
-    fastest_end_time = self._get_dist(pos, self._goal)
+    fastest_end_time = self._steps + self._get_dist(pos, self._goal)
     target = self._goal
     for bus_source, _ in self._bus_sources:
       end_time = self._walk_then_wait_time(self._steps, pos, bus_source)

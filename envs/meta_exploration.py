@@ -155,28 +155,30 @@ class InstructionWrapper(abc.ABC, gym.Wrapper):
 
     state = super().reset(seed=seed)
 
-    return InstructionState(
-        state.observation, self._current_instructions, None, 0, False,
-        self._trajectory, state.env_id, state.privileged_info)
+    # NOTE: modified to handle ELF pipeline
+    # return InstructionState(
+    #     state.observation, self._current_instructions, None, 0, False,
+    #     self._trajectory, state.env_id, state.privileged_info)
+    return state
 
   def step(self, action):
-    state, original_reward, done, info = super().step(action)
-    state = InstructionState(
-        state.observation, self._current_instructions, action, None, False,
-        self._trajectory, state.env_id, state.privileged_info)
+    state, original_reward, done, _, info = super().step(action)
+    # NOTE: modified to handle ELF pipeline
+    instruction_state = InstructionState(
+        state["observation"], self._current_instructions, action, None, False,
+        self._trajectory, self.env_id, state["expert"])
 
     if self._num_episodes == 1 and self._first_episode_no_instruction:
       reward, instructions_complete = 0, False
     else:
-      reward, instructions_complete = self._reward(
-          state, action, original_reward)
+      reward, instructions_complete = self._reward(instruction_state, action, original_reward)
 
     done = instructions_complete or done
-    state = state._replace(prev_reward=reward, done=done)
+    # state = state._replace(prev_reward=reward, done=done)
 
     if self._num_episodes == 1 and self._first_episode_no_optimization:
       reward = 0
-    return state, reward, done, info
+    return state, reward, done, done, info
     
 
 class MetaExplorationEnv(abc.ABC, gym.Env):

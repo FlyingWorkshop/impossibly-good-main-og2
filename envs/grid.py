@@ -4,7 +4,7 @@ import copy
 
 import gym
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from . import meta_exploration
 
@@ -463,7 +463,8 @@ class GridRender(object):
             self._image.width, self._image.height + self._banner.height +
             self._inventory.height))
     draw = ImageDraw.Draw(self._banner)
-    draw.text((0, 0), "\n".join(self._text), (0, 0, 0))
+    # font = ImageFont.load_default().font_variant(size=20)
+    draw.text((0, 0), "\n".join(self._text), (0, 0, 0), font=None)
     image.paste(self._banner, (0, 0))
     image.paste(self._inventory, (0, self._banner.height))
     image.paste(self._image, (0, self._banner.height + self._inventory.height))
