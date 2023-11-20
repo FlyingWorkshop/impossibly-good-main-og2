@@ -70,6 +70,8 @@ def save_status(status, model_dir, i):
 
 
 def save_render(render, model_dir, i):
+    if not render:
+        return
     for key, value in render.items():
         path = get_render_path(key, model_dir, i)
         utils.create_folders_if_necessary(path)

@@ -188,6 +188,8 @@ class FEAlgo:
         
         combined_exp = {'follower':follower_exp, 'explorer':explorer_exp}
         combined_log = {**follower_log, **explorer_log}
+
+        combined_log["done_count"] = follower_log["done_count"] + explorer_log["done_count"]
         
         if self.expert_frames_per_proc:
             combined_exp['expert'] = expert_exp

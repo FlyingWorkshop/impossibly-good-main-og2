@@ -53,8 +53,9 @@ parser.add_argument("--seed", type=int, default=1,
                     help="random seed (default: 1)")
 parser.add_argument("--log-interval", type=int, default=1,
                     help="number of updates between two logs (default: 1)")
-parser.add_argument("--save-interval", type=int, default=10,
-                    help="number of updates between two saves (default: 10, 0 means no saving)")
+parser.add_argument("--save-interval", type=int, default=0, help="number of updates between two saves")
+parser.add_argument("--render-interval", type=int, default=10,
+                    help="number of updates between two renders (default: 10, 0 means no render saves)")
 parser.add_argument("--procs", type=int, default=16,
                     help="number of processes (default: 16)")
 parser.add_argument("--frames", type=int, default=10**7,
@@ -101,8 +102,9 @@ parser.add_argument("--reward-shaping", type=str, default='none')
 parser.add_argument("--refinement-percent", type=float, default=0.75)
 parser.add_argument("--render", action='store_true')
 parser.add_argument("--pause", type=float, default=0.0)
-parser.add_argument('--eval-frequency', type=int, default=8192)
-parser.add_argument('--eval-episodes', type=int, default=512)
+# parser.add_argument('--eval-frequency', type=int, default=8192)
+parser.add_argument('--eval-frequency', type=int, default=100)  # NOTE: changed to be episode based rather than step/frame based
+parser.add_argument('--eval-episodes', type=int, default=10)
 parser.add_argument('--eval-argmax', action='store_true')
 parser.add_argument('--advisor-alpha', type=float, default=10.)
 parser.add_argument('--switching-horizon', type=int, default=None)
@@ -223,6 +225,7 @@ if __name__ == '__main__':
         acmodel,
         device,
         preprocess_obss,
+        render=args.render,
     )
     eval_log_file = os.path.join(model_dir, 'eval_log.json')
     if os.path.exists(eval_log_file):
@@ -613,6 +616,8 @@ if __name__ == '__main__':
     # Train model
 
     num_frames = status["num_frames"]
+    new_completed_episodes = 0
+    total_completed_episodes = 0
     update = status["update"]
     start_time = time.time()
     
@@ -630,6 +635,9 @@ if __name__ == '__main__':
             if args.algo in ('fe',):
                 num_frames += logs["follower_num_frames"]
             update += 1
+
+            new_completed_episodes += logs["done_count"]
+            total_completed_episodes += logs["done_count"]
 
             # Print logs
             
@@ -704,19 +712,22 @@ if __name__ == '__main__':
                     tb_writer.add_scalar(field, value, num_frames)
             
             # Run independent evaluation
-            if args.eval_frequency > 0 and num_frames % args.eval_frequency == 0:
+            # if args.eval_frequency > 0 and num_frames % args.eval_frequency == 0:
+            if args.eval_frequency > 0 and new_completed_episodes >= args.eval_frequency:
+                new_completed_episodes = 0
                 print('Evaluating')
-                eval_log = evaluator.evaluate(args.eval_episodes, args.eval_argmax)
+                eval_log, eval_renders = evaluator.evaluate(args.eval_episodes, args.eval_argmax)
                 eval_log['num_frame'] = num_frames
+                # NOTE: changed this from num_frames to total_completed_episodes
                 return_stats = eval_log['return_stats']
                 tb_writer.add_scalar(
-                    'eval_return_mean', return_stats['mean'], num_frames)
+                    'eval_return_mean', return_stats['mean'], total_completed_episodes)
                 tb_writer.add_scalar(
-                    'eval_return_std', return_stats['std'], num_frames)
+                    'eval_return_std', return_stats['std'], total_completed_episodes)
                 tb_writer.add_scalar(
-                    'eval_return_min', return_stats['min'], num_frames)
+                    'eval_return_min', return_stats['min'], total_completed_episodes)
                 tb_writer.add_scalar(
-                    'eval_return_max', return_stats['max'], num_frames)
+                    'eval_return_max', return_stats['max'], total_completed_episodes)
                 
                 frame_stats = eval_log['frame_stats']
                 tb_writer.add_scalar(
@@ -729,8 +740,13 @@ if __name__ == '__main__':
                     'eval_frames_per_ep_max', frame_stats['max'], num_frames)
                 eval_logs.append(eval_log)
 
-            # Save status
+                utils.save_render({"eval": eval_renders}, model_dir, i="NEW")
 
+                # NOTE: moved this from save-interval
+                with open(eval_log_file, 'w') as f:
+                    json.dump(eval_logs, f, indent=2)
+
+            # Save status
             if args.save_interval > 0 and update % args.save_interval == 0:
                 if args.algo in ('fe',):
                     optimizer_state = {
@@ -759,12 +775,12 @@ if __name__ == '__main__':
                 if hasattr(preprocess_obss, "vocab"):
                     status["vocab"] = preprocess_obss.vocab.vocab
                 utils.save_status(status, model_dir, i='NEW')
-                utils.save_render(render, model_dir, i='NEW')
                 txt_logger.info("Status saved")
-                
-                with open(eval_log_file, 'w') as f:
-                    json.dump(eval_logs, f, indent=2)
 
+            if args.render_interval > 0 and update % args.render_interval == 0:
+                utils.save_render(render, model_dir, i='NEW')
+                txt_logger.info("Render saved")
+    
         # save one more time at the very end
         if args.algo in ('fe',):
             optimizer_state = {

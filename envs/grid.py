@@ -464,7 +464,7 @@ class GridRender(object):
             self._inventory.height))
     draw = ImageDraw.Draw(self._banner)
     # font = ImageFont.load_default().font_variant(size=20)
-    draw.text((0, 0), "\n".join(self._text), (0, 0, 0), font=None)
+    draw.text((0, 0), "\n".join(self._text), (0, 0, 0))
     image.paste(self._banner, (0, 0))
     image.paste(self._inventory, (0, self._banner.height))
     image.paste(self._image, (0, self._banner.height + self._inventory.height))

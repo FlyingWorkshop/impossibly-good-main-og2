@@ -179,6 +179,7 @@ class Distill:
     
     def collect_experiences(self):
         renders = []
+        done_count = 0
 
         for i in range(self.num_frames_per_proc):
             
@@ -308,8 +309,10 @@ class Distill:
             
             # step
             obs, reward, done, _, _ = self.env.step(action.cpu().numpy())
+            
+            done_count += sum(done)
 
-            if self.render and done and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
+            if self.render and done[0] and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
                 renders.append(self.env.envs[0].last_render.image())
             
             # compute reward surrogate
@@ -504,6 +507,8 @@ class Distill:
         self.log_reshaped_return = self.log_reshaped_return[-self.num_procs:]
         self.log_num_frames = self.log_num_frames[-self.num_procs:]
 
+        logs["done_count"] = done_count
+        
         return exps, logs, renders
     
     def update_parameters(self, exps):

@@ -14,6 +14,7 @@ class Evaluator:
         model,
         device,
         preprocessor,
+        render
     ):
         seed = 1234567890
         utils.seed(seed)
@@ -22,7 +23,8 @@ class Evaluator:
         self.device = device
         self.preprocessor = preprocessor
         self.num_procs = num_procs
-        
+        self.render = render
+
         envs = []
         for i in range(num_procs):
             #if i == 0:
@@ -38,12 +40,14 @@ class Evaluator:
     def cleanup(self):
         pass
     
-    def evaluate(self, num_episodes, argmax=False):
+    def evaluate(self, num_episodes, argmax=False, render=False):
+        renders = []
         log = {
             'num_frames_per_episode':[],
             'return_per_episode':[],
             'argmax':argmax,
         }
+
         obss = self.env.reset()
         
         self.model.eval()
@@ -77,6 +81,12 @@ class Evaluator:
         
             obss, rewards, dones, _, _ = self.env.step(actions)
             
+            if self.render:
+                if dones[0]:
+                    renders.append(self.env.envs[0].last_render.image())
+                render = self.env.envs[0].render('human').image()
+                renders.append(render)
+            
             masks = 1 - torch.tensor(
                 dones, dtype=torch.float, device=self.device)
             
@@ -109,4 +119,4 @@ class Evaluator:
         
         self.model.train()
         
-        return log
+        return log, renders
