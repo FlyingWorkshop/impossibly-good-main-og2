@@ -56,14 +56,14 @@ class Evaluator:
         episode_return = torch.zeros(self.num_procs, device=self.device)
         episode_frames = torch.zeros(self.num_procs, device=self.device)
         
-        if self.model.use_memory:
+        if hasattr(self.model, "use_memory") and self.model.use_memory:
             memory = torch.zeros(
                 self.num_procs, self.model.memory_size, device=self.device)
         
         while done_count < num_episodes:
             with torch.no_grad():
                 preprocessed_obss = self.preprocessor(obss, device=self.device)
-                if self.model.use_memory:
+                if hasattr(self.model, "use_memory") and self.model.use_memory:
                     if hasattr(self.model, 'advisor_model'):
                         dist, _, _, memory, *_ = self.model(
                             preprocessed_obss, memory=memory)

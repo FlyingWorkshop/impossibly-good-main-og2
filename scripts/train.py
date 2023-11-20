@@ -227,6 +227,15 @@ if __name__ == '__main__':
         preprocess_obss,
         render=args.render,
     )
+    evaluator2 = Evaluator(
+        args.env,
+        args.procs,
+        acmodel.model.follower,
+        device,
+        preprocess_obss,
+        render=args.render,
+    )
+
     eval_log_file = os.path.join(model_dir, 'eval_log.json')
     if os.path.exists(eval_log_file):
         with open(eval_log_file) as f:
@@ -716,7 +725,8 @@ if __name__ == '__main__':
             if args.eval_frequency > 0 and new_completed_episodes >= args.eval_frequency:
                 new_completed_episodes = 0
                 print('Evaluating')
-                eval_log, eval_renders = evaluator.evaluate(args.eval_episodes, args.eval_argmax)
+                eval_log, eval_explorer_renders = evaluator.evaluate(args.eval_episodes, args.eval_argmax)
+                _, eval_follower_renders = evaluator2.evaluate(args.eval_episodes, args.eval_argmax)
                 eval_log['num_frame'] = num_frames
                 # NOTE: changed this from num_frames to total_completed_episodes
                 return_stats = eval_log['return_stats']
@@ -740,7 +750,7 @@ if __name__ == '__main__':
                     'eval_frames_per_ep_max', frame_stats['max'], num_frames)
                 eval_logs.append(eval_log)
 
-                utils.save_render({"eval": eval_renders}, model_dir, i="NEW")
+                utils.save_render({"eval-explorer": eval_explorer_renders, "eval-follower": eval_follower_renders}, model_dir, i="NEW")
 
                 # NOTE: moved this from save-interval
                 with open(eval_log_file, 'w') as f:

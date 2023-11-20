@@ -265,6 +265,7 @@ class NonstationaryMapGridEnv(MapGridEnv):
     self._place_buses()
 
   def _step(self, action):
+    breakpoint()
     if self._steps_since_switch == self._switch_intervals[self._interval_index]:
       self._steps_since_switch = 0
       self._switch_bus_permutation(self._env_ids[self._interval_index])
@@ -359,15 +360,14 @@ class NonstationaryMapGridEnv(MapGridEnv):
   @staticmethod
   def _get_walking_directions(start, stop):
     if start[0] < stop[0]:
-      return Action.down  # up and down are swapped? TODO: double check this
-    elif start[0] > stop[1]:
-      return Action.up
-    elif start[1] < stop[1]:
       return Action.right
-    elif start[1] > stop[1]:
+    elif start[0] > stop[0]:
       return Action.left
+    elif start[1] < stop[1]:
+      return Action.up
+    elif start[1] > stop[1]:
+      return Action.down
     else:
-      # start == stop
       return None
 
   def _get_nearest_bus_by_dest(self, pos):
@@ -425,6 +425,8 @@ class NonstationaryMapGridEnv(MapGridEnv):
 
     # if already reached target, optimal action is riding the bus
     return self._get_walking_directions(pos, target) or Action.ride_bus
+
+  def 
 
   def _walk_then_wait_time(self, steps, pos, bus_source):
     """
@@ -496,6 +498,33 @@ class NonstationaryMapGridEnv(MapGridEnv):
       fastest_end_time = min(end_time, fastest_end_time)
     
     return fastest_end_time
+  
+  def _calc_next_pos(self, pos, action, step):
+    next_pos = np.copy(self.agent_pos)
+    if action == Action.left:
+      next_pos[0] -= 1
+    elif action == Action.up:
+      next_pos[1] += 1
+    elif action == Action.right:
+      next_pos[0] += 1
+    elif action == Action.down:
+      next_pos[1] -= 1
+    elif action == Action.ride_bus:
+      bus = self.get(pos)
+      pass
+    else:
+      assert False, "Invalid action!"
+
+    next_pos = np.clip(next_pos, [0, 0], [self.width - 1, self.height - 1]) 
+    return next_pos
+
+  def _compute_path(self):
+    path = [self.agent_pos]
+    i = 0
+    while (optimal_action := self._compute_optimal_action(path[-1])) is not None:
+        path.append(self._calc_next_pos(path[-1], optimal_action, self._steps + i))
+        i += 1
+    return path
     
   def _compute_optimal_action(self, pos: np.ndarray):
     if np.array_equal(pos, self._goal):
