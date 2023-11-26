@@ -9,10 +9,19 @@ import torch
 import numpy as np
 from PIL import Image
 
-from . import meta_exploration
-from envs import privileged
-from . import policy
-from . import render
+from . import meta_exploration, privileged, policy, render
+
+
+class VaryingTextFrame(entity.TextFrame):
+  """A non-static TextFrame."""
+
+  @property
+  def is_static(self):
+    return False
+
+  def set_text(self, text):
+    self.str = text
+    self.randomize(None, None)
 
 
 class ConstructionEnv(miniworld.MiniWorldEnv):
@@ -24,24 +33,27 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
 
   The sign behind the wall either says "blue" or "red"
   """
+  _num_rows = 3
 
   def __init__(self, size=10, max_episode_steps=40, row_index=0):
     params = gym_miniworld.params.DEFAULT_PARAMS.no_random()
     params.set('forward_step', 0.8)
-    params.set('turn_step', 30)  # 30 degree rotation
+    params.set('turn_step', 45)  # 45 degree rotation
 
     self._size = size
     self._row_index = row_index
+    self._blocked_indices = [
+        i for i in range(self._num_rows) if i != row_index]
 
-    super().__init__(
-        params=params, max_episode_steps=max_episode_steps, domain_rand=False)
+    super().__init__(params=params, max_episode_steps=max_episode_steps, domain_rand=False)
 
     # Allow for left / right / forward + custom end episode
-    self.action_space = gym.spaces.Discrete(self.actions.move_forward + 2)
-    self.max_steps = 20
+    self.action_space = gym.spaces.Discrete(self.actions.move_forward + 1)    # no end episode action
 
   def set_row_index(self, row_index):
     self._row_index = row_index
+    self._blocked_indices = [
+        i for i in range(self._num_rows) if i != row_index]
 
   @property
   def steps_remaining(self):
@@ -50,20 +62,47 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
 
   def _gen_world(self):
     start_room = self.add_rect_room(
-        min_x=0, max_x=0.4 * self._size, min_z=0, max_z=self._size * 1.3,
-        floor_tex="asphalt", no_ceiling=True, wall_tex='brick_wall')
+        min_x=0,
+        max_x=0.3 * self._size,
+        min_z=0,
+        max_z=self._size * 1.3,
+        floor_tex="asphalt",
+        no_ceiling=True,
+        wall_tex='brick_wall')
+    end_room = self.add_rect_room(
+        min_x=0.75 * self._size,
+        max_x=1.05 * self._size,
+        min_z=0,
+        max_z=self._size * 1.3,
+        floor_tex="asphalt",
+        no_ceiling=True,
+        wall_tex='brick_wall')
     first_route = self.add_rect_room(
-        min_x=0.4 * self._size, max_x=self._size, min_z=0,
-        max_z=self._size * 0.3, floor_tex="asphalt", no_ceiling=True,
+        min_x=0.3 * self._size,
+        max_x=0.75 * self._size,
+        min_z=0,
+        max_z=self._size * 0.3,
+        floor_tex="asphalt",
+        no_ceiling=True,
         wall_tex='brick_wall')
     second_route = self.add_rect_room(
-        min_x=0.4 * self._size, max_x=self._size, min_z=self._size * 0.5,
-        max_z=self._size * 0.8, floor_tex="asphalt", no_ceiling=True,
+        min_x=0.3 * self._size,
+        max_x=0.75 * self._size,
+        min_z=self._size * 0.5,
+        max_z=self._size * 0.8,
+        floor_tex="asphalt",
+        no_ceiling=True,
         wall_tex='brick_wall')
     third_route = self.add_rect_room(
-        min_x=0.4 * self._size, max_x=self._size, min_z=self._size * 1.0,
-        max_z=self._size * 1.3, floor_tex="asphalt", no_ceiling=True,
+        min_x=0.3 * self._size,
+        max_x=0.75 * self._size,
+        min_z=self._size * 1.0,
+        max_z=self._size * 1.3,
+        floor_tex="asphalt",
+        no_ceiling=True,
         wall_tex='brick_wall')
+
+    # Connect left road
     self.connect_rooms(
         start_room, first_route, min_z=0, max_z=self._size * 0.3)
     self.connect_rooms(
@@ -73,33 +112,134 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
         start_room, third_route, min_z=self._size * 1.0,
         max_z=self._size * 1.3)
 
-    self._objects = [
-        (self.place_entity(entity.MeshEnt(mesh_name="cone", height=0.75),
-            pos=np.array([0.75 * self._size, 0, self._size * 0.5 * self._row_index + 0.025 * self._size])),
-         self.place_entity(entity.MeshEnt(mesh_name="cone", height=0.75),
-            pos=np.array([0.75 * self._size, 0, self._size * 0.5 * self._row_index + 0.075 * self._size])),
-         self.place_entity(entity.MeshEnt(mesh_name="cone", height=0.75),
-            pos=np.array([0.75 * self._size, 0, self._size * 0.5 * self._row_index + 0.125 * self._size])),
-         self.place_entity(entity.MeshEnt(mesh_name="cone", height=0.75),
-            pos=np.array([0.75 * self._size, 0, self._size * 0.5 * self._row_index + 0.175 * self._size])),
-         self.place_entity(entity.MeshEnt(mesh_name="cone", height=0.75),
-            pos=np.array([0.75 * self._size, 0, self._size * 0.5 * self._row_index + 0.225 * self._size])),
-         self.place_entity(entity.MeshEnt(mesh_name="cone", height=0.75),
-            pos=np.array([0.75 * self._size, 0, self._size * 0.5 * self._row_index + 0.275 * self._size])),
-        )
-    ]
+    # Connect right road
+    self.connect_rooms(
+        end_room, first_route, min_z=0, max_z=self._size * 0.3)
+    self.connect_rooms(
+        end_room, second_route, min_z=self._size * 0.5,
+        max_z=self._size * 0.8)
+    self.connect_rooms(
+        end_room, third_route, min_z=self._size * 1.0,
+        max_z=self._size * 1.3)
 
-    text = ["1", "2", "3"][self._row_index]
-    sign = gym_miniworld.entity.TextFrame(
-        pos=[0, 1.35, self._size * 0.5 * 1.3],
+    self._objects = []
+
+    self._signs = []
+    for i in range(self._num_rows):
+      sign = VaryingTextFrame(
+          pos=[0.35 * self._size, 1.35, self._size * 0.5 * i],
+          dir=-np.pi / 2,
+          str="C",
+          height=1,
+      )
+      self.entities.append(sign)
+      self._signs.append(sign)
+
+    # Start on the top left corner
+    self.place_agent(
         dir=0,
-        str=text,
-        height=1,
-    )
-    self.entities.append(sign)
-    self.place_agent(min_x=0, max_x=0.4 * self._size, min_z=0, max_z=1.3 * self._size)
+        min_x=0,
+        max_x=0.1 * self._size,
+        min_z=0,
+        max_z=1.3 * self._size)
+
+    # # Design 1: For each interval, sample blocked and unblocked roads
+    # self._num_intervals = 5
+    # self._interval_length = self.max_episode_steps // self._num_intervals
+    # self._blocked_indices_by_interval = []
+    # for _ in range(self._num_intervals):
+    #   # blocked_indices = list(set(np.random.randint(low=0, high=3, size=2)))
+
+    #   # Resample with probability 0.25 otherwise keep the same clear_index
+    #   if not clear_index or np.random.rand() < 0.25:
+    #     clear_index = np.random.randint(low=0, high=3)
+
+    #   blocked_indices = [i for i in range(self._num_rows) if i != clear_index]
+    #   self._blocked_indices_by_interval.append(list(blocked_indices))
+    #   self._clear_indices_by_interval.append(clear_index)
+
+    # Design 2: Decide when the blocked roads will be blocked
+    self._num_intervals = 8
+    self._interval_length = self.max_episode_steps // self._num_intervals
+    self._blocked_indices_by_interval = []
+    blocked_indices = []
+    for interval in range(self._num_intervals):
+      new_blocked_indices = []
+      for i in self._blocked_indices:
+        if np.random.rand() < 0.5:
+          new_blocked_indices.append(i)
+
+      for i in new_blocked_indices:
+        if i not in blocked_indices:
+          blocked_indices.append(i)
+      self._blocked_indices_by_interval.append(list(blocked_indices))
+
+    self._spawned = [False,] * self._num_rows
+
+    # Set the blocked signs
+    for row in self._blocked_indices_by_interval[0]:
+      self._signs[row].set_text("B")
+
+    # Set privileged info
+    self._valid_indices = []
+    for i in range(self._num_rows):
+      if i in self._blocked_indices_by_interval[0]:
+        self._valid_indices.append(0)
+      else:
+        self._valid_indices.append(1)
+
+  def _spawn_cones_at_row(self, row_index):
+    cones = []
+    for i in range(6):
+      cones.append(
+          self.place_entity(
+              entity.MeshEnt(mesh_name="cone", height=0.75, static=False),
+              pos=np.array([0.75 * self._size, 0,
+                  (0.5 * row_index + 0.025 + i * 0.05) * self._size
+              ])))
+    return [tuple(cones)]
+
+  def _in_row(self, row_index):
+    return (self.agent.pos[2] >= self._size * 0.5 * row_index
+        and self.agent.pos[2] <= self._size * (0.5 * row_index + 0.3))
+
+  def _change_signs_and_spawn_cones(self):
+    # Spawn when agent is halfway down the route
+    if self.step_count > 0 and self.step_count % self._interval_length == 0:
+      # Reset self._spawned, self._objects, and signs
+      for obj_pair in self._objects:
+        for obj in obj_pair:
+          self.entities.remove(obj)
+
+      self._objects = []
+      self._spawned = [False,] * self._num_rows
+      for i in range(self._num_rows):
+        self._signs[i].set_text("C")
+
+      # Set the blocked signs
+      interval_idx = self.step_count // self._interval_length
+      for row in self._blocked_indices_by_interval[interval_idx]:
+        self._signs[row].set_text("B")
+
+      # Set privileged info
+      self._valid_indices = []
+      for i in range(self._num_rows):
+        if i in self._blocked_indices_by_interval[interval_idx]:
+          self._valid_indices.append(0)
+        else:
+          self._valid_indices.append(1)
+
+    # Spawn agent if it is halfway down a blocked route
+    interval_idx = self.step_count // self._interval_length
+    for row in self._blocked_indices_by_interval[interval_idx]:
+      if self._spawned[row]:
+        continue
+      if self._in_row(row) and self.agent.pos[0] >= 0.4 * self._size:
+        self._objects.extend(self._spawn_cones_at_row(row))
+        self._spawned[row] = True
 
   def step(self, action):
+    self._change_signs_and_spawn_cones()
     obs, reward, done, info = super().step(action)
 
     reward = -0.05
@@ -120,32 +260,8 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
     return obs, reward, done, info
 
   def demo_policy(self):
-    valid_rows = [i for i in range(3) if i != self._row_index]
+    valid_rows = [self._row_index,]
     return DemoPolicy(self, valid_rows)
-
-
-class ELFConstructionEnv(ConstructionEnv):
-  def __init__(self, size=10, max_episode_steps=40, row_index=0):
-    super().__init__(size, max_episode_steps, row_index)
-
-    # transpose observation space to match ELF's Vizdoom models
-    h, w, c = self.observation_space.shape
-    self.observation_space = gym.spaces.Box(
-            low=0,
-            high=255,
-            shape=(c, h, w),
-            dtype=np.uint8
-    )
-  
-  def reset(self):
-    obs = super().reset()
-    obs = np.transpose(obs, axes=(2, 0, 1))
-    return obs, {}
-
-  def step(self):
-    obs, reward, done, info = super().step()
-    obs = np.transpose(obs, axes=(2, 0, 1))
-    return obs, reward, done, info
 
 
 # From:
@@ -164,34 +280,34 @@ class TransposeImage(gym.ObservationWrapper):
     return observation.transpose(2, 1, 0)
 
 
-class PrivilegedMiniWorldEnv(object):
-  _privileged_info_modes = ("env_id", None)
-  _refreshing_modes = ()
+class PrivilegedMiniWorldEnv(meta_exploration.MetaExplorationEnv):
+  _privileged_info_modes = ("env_id", "valid-indices", None)
+  _refreshing_modes = ("valid-indices",)
 
   def __init__(self, env_id, wrapper, max_steps=20, mode=None):
+    self.set_mode(mode)
+
+  def set_mode(self, mode=None):
     self._refresh = mode in self._refreshing_modes
     self._mode = mode
-    self._privileged_info = None  # IMPORTANT: make sure to call self._gen_privileged_info() in concrete subclasses to avoid rendering bug
+    self._privileged_info = None
+
+  def _step(self, action):
+    if self._refresh:
+      self._privileged_info = self._gen_privileged_info()
+
+  def _reset(self):
+    self._privileged_info = self._gen_privileged_info()
 
   def _gen_privileged_info(self):
     if self._mode is None:
       return 0
-
-    if self._mode == "env_id":
-      privileged_info = self.env_id
-    else:
-      raise NotImplementedError
-    return privileged_info
+    raise NotImplementedError
 
   def _privileged_info_space(self):
     if self._mode is None:
       return np.array([0]), np.array([1]), np.int
-
-    if self._mode == "env_id":
-      low, high, dtype = self._env_id_space()
-    else:
-      raise NotImplementedError
-    return low, high, dtype
+    raise NotImplementedError
 
   @classmethod
   def instruction_wrapper(cls):
@@ -199,24 +315,25 @@ class PrivilegedMiniWorldEnv(object):
 
   @property
   def observation_space(self):
-    env_id_low, env_id_high, dtype = self._env_id_space()
-    privileged_info_low, privileged_info_high, dtype = self._privileged_info_space()
+    env_id_low, env_id_high, env_id_dtype = self._env_id_space()
+    privileged_info_low, privileged_info_high, privileged_info_dtype = self._privileged_info_space()
     data = {
         "observation": self._observation_space(),
-        "env_id": gym.spaces.Box(env_id_low, env_id_high, dtype=dtype),
-        "privileged_info": gym.spaces.Box(privileged_info_low, privileged_info_high, dtype=dtype),
+        "env_id": gym.spaces.Box(env_id_low, env_id_high, dtype=env_id_dtype),
+        "privileged_info": gym.spaces.Box(privileged_info_low, privileged_info_high, dtype=privileged_info_dtype),
     }
     return gym.spaces.Dict(data)
 
 
-class MiniWorldConstruction(PrivilegedMiniWorldEnv, meta_exploration.MetaExplorationEnv):
-  """Wrapper around the gym-miniworld Maze conforming to the MetaExplorationEnv
+class MiniWorldConstruction(PrivilegedMiniWorldEnv):
+  """
+  Wrapper around the gym-miniworld Maze conforming to the MetaExplorationEnv
   interface.
   """
   action_cls = miniworld.MiniWorldEnv.Actions
 
-  def __init__(self, env_id, wrapper):
-    super().__init__(env_id, wrapper)
+  def __init__(self, env_id, wrapper, mode=None):
+    super().__init__(env_id, wrapper, mode=mode)
     self._base_env = ConstructionEnv()
     self._env = TransposeImage(self._base_env)
     self.action_space = self._env.action_space
@@ -234,15 +351,39 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv, meta_exploration.MetaExplora
     env_id = to_sample[random.randint(len(to_sample))]
     construction_instance._env_id = env_id
     construction_instance._wrapper = wrapper
+    construction_instance.set_mode(mode)
     return construction_instance
 
+  def _gen_privileged_info(self):
+    if self._mode is None or self._mode == "env_id":
+      return np.array([self.env_id])
+    if self._mode == "valid-indices":
+      return self._base_env._valid_indices
+    raise NotImplementedError
+
+  def _privileged_info_space(self):
+    if self._mode is None or self._mode == "env_id":
+      return self._env_id_space()
+    if self._mode == "valid-indices":
+      low = np.array([0,] * self._base_env._num_rows)
+      high = np.array([2,] * self._base_env._num_rows)
+      return low, high, np.int
+    raise NotImplementedError
+
   def _step(self, action):
-    return self._env.step(action)
+    # Refresh the privileged info
+    o = self._env.step(action)
+    super()._step(action)
+    return o
 
   def _reset(self):
     # Don't set the seed, otherwise can cheat from initial camera angle position!
     self._env.set_row_index(self.env_id)
-    return self._env.reset()
+
+    o = self._env.reset()
+    # Set the privileged info
+    super()._reset()
+    return o
 
   def _observation_space(self):
     return self._env.observation_space
@@ -253,7 +394,7 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv, meta_exploration.MetaExplora
 
   def _env_id_space(self):
     low = np.array([0])
-    high = np.array([3])
+    high = np.array([self._base_env._num_rows])
     dtype = np.int
     return low, high, dtype
 
@@ -267,6 +408,7 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv, meta_exploration.MetaExplora
     image = render.Render(image)
     image.write_text("Env ID: {}".format(self.env_id))
     image.write_text(f"Privileged Info ({self._mode}): {self._privileged_info}")
+    image.write_text(f"Signs: {[sign.str for sign in self._base_env._signs]}")
     return image
 
   def demo_policy(self):
@@ -334,3 +476,39 @@ class DemoPolicy(policy.Policy):
 
 # Prevents from opening too many windows.
 construction_instance = MiniWorldConstruction(0, None)
+
+
+class ELFConstructionEnv(ConstructionEnv):
+  _gym_disable_underscore_compat = True
+
+  def __init__(self, size=10, max_episode_steps=40, row_index=0):
+    # added for ELF
+    self._rng = None
+    self.max_steps = max_episode_steps
+    
+    super().__init__(size, max_episode_steps, row_index)
+
+    # transpose observation space to match ELF's Vizdoom models
+    h, w, c = self.observation_space.shape
+    self.observation_space = gym.spaces.Box(
+            low=0,
+            high=255,
+            shape=(c, h, w),
+            dtype=np.uint8
+    )
+  
+  def reset(self, seed=None):
+    # create new env_id before calling super reset (which places objects)
+    if seed is not None:
+        self._rng = np.random.RandomState(seed)
+    assert self._rng is not None
+    self._env_id = self.create_env_id(self._rng.randint(1e5))
+    
+    obs = self._reset()
+    obs = np.transpose(obs, axes=(2, 0, 1))
+    return obs, {}
+
+  def step(self):
+    obs, reward, done, info = super().step()
+    obs = np.transpose(obs, axes=(2, 0, 1))
+    return obs, reward, done, info

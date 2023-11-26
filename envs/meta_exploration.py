@@ -180,7 +180,7 @@ class InstructionWrapper(abc.ABC, gym.Wrapper):
     if self._num_episodes == 1 and self._first_episode_no_optimization:
       reward = 0
 
-    state[0]["observation"] = np.concatenate((state[0]["observation"], self._current_instructions))
+    state["observation"] = np.concatenate((state["observation"], self._current_instructions))
     return state, reward, done, done, info
     
 

@@ -271,8 +271,11 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
+                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv)):
                     render = self.env.envs[0].render('human').image()
+                    renders.append(render)
+                elif isinstance(self.env.envs[0], NonstationaryInstructionWrapper):
+                    render = self.env.envs[0].env.render('human').image()
                     renders.append(render)
                 else:
                     self.env.envs[0].render_mode = 'rgb_array'

@@ -5,7 +5,7 @@ import numpy as np
 
 from envs import grid
 from envs import meta_exploration
-from envs.grid import Action, Bus
+from envs.grid import Action, Bus, GridRender
 
 
 class InstructionWrapper(meta_exploration.InstructionWrapper):
@@ -43,6 +43,7 @@ class InstructionWrapper(meta_exploration.InstructionWrapper):
     return goal
 
   def render(self, mode="human"):
+    assert False
     image = super().render(mode)
     image.draw_rectangle(self.current_instructions, 0.5, "green")
     image.write_text("Instructions: {}".format(self.current_instructions))
@@ -78,10 +79,12 @@ class NonstationaryInstructionWrapper(InstructionWrapper):
       reward = -0.2
     elif action == grid.Action.end_episode:
       reward -= self.steps_remaining * 0.05  # penalize ending the episode
+    self.env.last_reward = reward
     return reward, done
   
   def reset(self, seed=None):
     return super().reset(seed=seed)
+
 
 
 class CityGridEnv(grid.GridEnv):
@@ -177,6 +180,7 @@ class MapGridEnv(CityGridEnv):
     return np.concatenate((obs, map_info), 0)
 
   def render(self, mode="human"):
+    assert False
     image = super().render(mode=mode)
     image.draw_rectangle(self._map_pos, 0.4, "black")
     return image
@@ -213,7 +217,7 @@ class NonstationaryMapGridEnv(MapGridEnv):
     self.last_reward = None
     self._rng = None
     self.max_steps = self._max_steps
-    self.obs_len = 4
+    self.obs_len = 6
 
   @property
   def action_space(self):
@@ -317,10 +321,11 @@ class NonstationaryMapGridEnv(MapGridEnv):
       high = high.repeat(self._max_steps)
     return low, high, dtype
 
-  # NOTE: not really used
   @property
   def observation_space(self):
     observation_low, observation_high, _ = self._observation_space()
+    observation_low = np.concatenate((observation_low, [0, 0]))
+    observation_high = np.concatenate((observation_high, [15, 15]))
     env_id_low, env_id_high, dtype = self._env_id_space()
     privileged_info_low, privileged_info_high, dtype = self._privileged_info_space()
     data = {
@@ -331,9 +336,22 @@ class NonstationaryMapGridEnv(MapGridEnv):
     return gym.spaces.Dict(data)
 
   def render(self, mode="human"):
-    image = super().render(mode)
-    optimal_action = self._compute_optimal_action(self.agent_pos)
-    image.write_text("Expert: {}".format(optimal_action.__repr__()))  # optimal next action
+    image = GridRender(self.width, self.height)
+    image.draw_rectangle(self.agent_pos, 0.6, "red")
+    for x, col in enumerate(self._grid):
+      for y, obj in enumerate(col):
+        if obj is not None:
+          image.draw_rectangle(np.array((x, y)), obj.size, obj.color)
+    for pos in self._history:
+      image.draw_rectangle(pos, 0.2, "orange")
+    image.write_text(self.text_description())
+    state = self._gen_obs()
+    obs = np.concatenate((state['observation'], self._goal))
+    image.write_text("Current state: {}".format(obs))
+    image.write_text("Env ID: {}".format(self.env_id))
+    image.draw_rectangle(self._map_pos, 0.4, "black")
+    image.draw_rectangle(self._goal, 0.5, "green")
+    image.write_text("Expert: {}".format(state['expert'].__repr__()))  # optimal next action
     image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
     image.write_text("Reward: {}".format(self.last_reward))  # last reward
     image.write_text("Timestep: {}".format(self._steps))  # current timestep
@@ -342,14 +360,14 @@ class NonstationaryMapGridEnv(MapGridEnv):
       image.draw_rectangle(pos, 0.1, "indigo")
     return image
 
-  def _get_goal_bus(self):
+  def _get_goal_bus_source(self):
     distances = np.linalg.norm(self._destinations - self._goal, ord=1, axis=1)
     i = np.argwhere(distances == 1)[0][0]
     bus = self.get(self._destinations[i])._destination
     for bus_source, _ in self._bus_sources:
       bus = self.get(bus_source)
       if np.linalg.norm(bus._destination - self._goal, ord=1) == 1:
-        return bus, bus_source
+        return bus_source
 
   @staticmethod
   def _get_walking_directions(start, stop):
@@ -389,6 +407,8 @@ class NonstationaryMapGridEnv(MapGridEnv):
   def _get_path(self):
     path = [self.agent_pos]
     while (optimal_action := self._compute_optimal_action(path[-1])) is not None:
+        if len(path) > self.max_steps:
+          break
         path.append(self._calc_next_pos(path[-1], optimal_action))
     return path
 
@@ -410,27 +430,30 @@ class NonstationaryMapGridEnv(MapGridEnv):
     walk_time = self._calc_dist(pos, self._goal)
 
     # Case (2):
-    goal_bus, goal_bus_source = self._get_goal_bus()
-    walk_to_bus_time = self._calc_dist(pos, goal_bus_source) 
-    ride_time = 1
-    goal_bus_dest_to_goal_time = self._calc_dist(pos, goal_bus._destination)
-    walk_then_bus_time = walk_to_bus_time + ride_time + goal_bus_dest_to_goal_time
+    bus1_source = self._get_goal_bus_source()
+    walk_to_bus1_time = self._calc_dist(pos, bus1_source) 
+    walk_then_bus_time = walk_to_bus1_time + (ride_time := 1) + (dest_to_goal_time := 1)
 
     # Case (3):
     i = np.argmin(np.linalg.norm(pos - self._destinations, ord=1, axis=1) + ride_time)
-    nearest_outer_bus = self.get(self._destinations[i])
-    bus_to_bus_time = self._calc_dist(pos, self._destinations[i]) + ride_time + self._calc_dist(nearest_outer_bus._destination, goal_bus_source)
-    bus_then_bus_time = bus_to_bus_time + ride_time + goal_bus_dest_to_goal_time
+    bus2_source = self._destinations[i]
+    bus1_dest_to_bus1_source_time = 2
+    bus_then_bus_time = (
+      self._calc_dist(pos, bus2_source) + ride_time + bus1_dest_to_bus1_source_time
+      + ride_time + dest_to_goal_time
+    )
 
     if walk_time == min(walk_time, walk_then_bus_time, bus_then_bus_time):
       target = self._goal
     elif walk_then_bus_time <= bus_then_bus_time:
-      target = goal_bus_source
+      target = bus1_source
     else:
-      target = nearest_outer_bus._destination
+      target = bus2_source
 
-    # if already reached target, optimal action is riding the bus
-    return self._get_walking_directions(pos, target) or Action.ride_bus
+    if np.array_equal(target, pos):
+      return Action.ride_bus
+    else:
+      return self._get_walking_directions(pos, target)
 
   def _process_obs(self, obs):
     optimal_action = self._compute_optimal_action(self.agent_pos)

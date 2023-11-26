@@ -4,6 +4,7 @@ from torch_ac.utils.penv import ParallelEnv
 
 import utils
 
+from envs.city import NonstationaryInstructionWrapper
 #from envs.env_wrappers import DeferredWrapper
 
 class Evaluator:
@@ -84,7 +85,10 @@ class Evaluator:
             if self.render:
                 if dones[0]:
                     renders.append(self.env.envs[0].last_render.image())
-                render = self.env.envs[0].render('human').image()
+                if isinstance(self.env.envs[0], NonstationaryInstructionWrapper):
+                    render = self.env.envs[0].env.render('human').image()
+                else:
+                    render = self.env.envs[0].render('human').image()
                 renders.append(render)
             
             masks = 1 - torch.tensor(

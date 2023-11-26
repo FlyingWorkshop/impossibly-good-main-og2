@@ -2,9 +2,10 @@
 
 For debugging, just add `procs=1`
 
-`python scripts/train.py --algo='fe' --env='ImpossiblyGood-NonstationaryMap-v0' --render --eval-argmax --eval-episodes=10
---procs=1
-`
+# DEBUGGING
+```bash
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Construction-v0' --render --eval-argmax --eval-episodes=10 --procs=1
+```
 
 ## DREAM Envs
 ```bash
