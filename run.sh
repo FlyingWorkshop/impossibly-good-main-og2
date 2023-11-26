@@ -15,7 +15,7 @@ cd /iris/u/loganmb/impossibly-good-main
 source venv/bin/activate
 
 ## ELF Envs
-python scripts/train.py --algo='fe' --env='ImpossiblyGood-ExampleOne-5x5-v0' --render --eval-episodes=10
+# python scripts/train.py --algo='fe' --env='ImpossiblyGood-ExampleOne-5x5-v0' --render --eval-episodes=10
 # python scripts/train.py --algo='fe' --env='ImpossiblyGood-SingleBranch-v0' --render --eval-episodes=10
 # python scripts/train.py --algo='fe' --env='ImpossiblyGood-EarlyExplore3-v0' --render --eval-episodes=10
 # python scripts/train.py --algo='fe' --env='ImpossiblyGood-ExampleFourHard-9x9-v0' --render --eval-episodes=10
@@ -23,4 +23,4 @@ python scripts/train.py --algo='fe' --env='ImpossiblyGood-ExampleOne-5x5-v0' --r
 ## DREAM Envs
 # python scripts/train.py --algo='fe' --env='ImpossiblyGood-TigerDoor-v0' --render --eval-episodes=10 
 # python scripts/train.py --algo='fe' --env='ImpossiblyGood-LightDark-v0' --render --eval-episodes=10
-# python scripts/train.py --algo='fe' --env='ImpossiblyGood-NonstationaryMap-v0' --render --eval-episodes=10
+python scripts/train.py --algo='fe' --env='ImpossiblyGood-NonstationaryMap-v0' --render --eval-episodes=10

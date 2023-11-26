@@ -5,7 +5,7 @@ import numpy as np
 
 from envs import grid
 from envs import meta_exploration
-from envs.grid import Action
+from envs.grid import Action, Bus
 
 
 class InstructionWrapper(meta_exploration.InstructionWrapper):
@@ -337,17 +337,9 @@ class NonstationaryMapGridEnv(MapGridEnv):
     image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
     image.write_text("Reward: {}".format(self.last_reward))  # last reward
     image.write_text("Timestep: {}".format(self._steps))  # current timestep
-    if optimal_action in (Action.left, Action.right, Action.down, Action.up):
-      next_pos = np.copy(self.agent_pos)
-      if optimal_action == Action.left:
-          next_pos[0] -= 1
-      elif optimal_action == Action.up:
-          next_pos[1] += 1
-      elif optimal_action == Action.right:
-          next_pos[0] += 1
-      elif optimal_action == Action.down:
-          next_pos[1] -= 1
-      image.draw_rectangle(next_pos, 0.1, "indigo")
+    path = self._get_path()
+    for pos in path:
+      image.draw_rectangle(pos, 0.1, "indigo")
     return image
 
   def _get_goal_bus(self):
@@ -372,24 +364,35 @@ class NonstationaryMapGridEnv(MapGridEnv):
     else:
       return None
 
-  def _get_nearest_bus_by_dest(self, pos):
-    nearest_bus = None
-    nearest_dist = np.inf
-    nearest_bus_source = None
-    for bus_source, _ in self._bus_sources:
-      bus = self.get(bus_source)
-      dist = self._calc_dist(bus._destination, pos)
-      if dist < nearest_dist:
-        nearest_bus = bus
-        nearest_dist = dist
-        nearest_bus_source = None
-    return nearest_bus, nearest_bus_source
-
   @staticmethod     
   def _calc_dist(a, b):
     return np.linalg.norm(a - b, ord=1)
 
-  def _compute_naive_optimal_action_old(self, pos: np.ndarray):
+  def _calc_next_pos(self, pos, action):
+    next_pos = np.copy(pos)
+    if action == Action.left:
+      next_pos[0] -= 1
+    elif action == Action.up:
+      next_pos[1] += 1
+    elif action == Action.right:
+      next_pos[0] += 1
+    elif action == Action.down:
+      next_pos[1] -= 1
+    elif action == Action.noop:
+      pass
+    elif action == Action.ride_bus:
+      obj = self.get(pos)
+      if isinstance(obj, Bus):
+        next_pos = np.copy(obj._destination)
+    return next_pos
+
+  def _get_path(self):
+    path = [self.agent_pos]
+    while (optimal_action := self._compute_optimal_action(path[-1])) is not None:
+        path.append(self._calc_next_pos(path[-1], optimal_action))
+    return path
+
+  def _compute_optimal_action(self, pos: np.ndarray):
     """
     Compute the naive (non-future-aware) optimal action
 
@@ -414,8 +417,9 @@ class NonstationaryMapGridEnv(MapGridEnv):
     walk_then_bus_time = walk_to_bus_time + ride_time + goal_bus_dest_to_goal_time
 
     # Case (3):
-    nearest_bus, nearest_bus_source = self._get_nearest_bus_by_dest(pos)
-    bus_to_bus_time = self._calc_dist(pos, nearest_bus._destination) + ride_time + self._calc_dist(nearest_bus_source, goal_bus_source)
+    i = np.argmin(np.linalg.norm(pos - self._destinations, ord=1, axis=1) + ride_time)
+    nearest_outer_bus = self.get(self._destinations[i])
+    bus_to_bus_time = self._calc_dist(pos, self._destinations[i]) + ride_time + self._calc_dist(nearest_outer_bus._destination, goal_bus_source)
     bus_then_bus_time = bus_to_bus_time + ride_time + goal_bus_dest_to_goal_time
 
     if walk_time == min(walk_time, walk_then_bus_time, bus_then_bus_time):
@@ -423,148 +427,10 @@ class NonstationaryMapGridEnv(MapGridEnv):
     elif walk_then_bus_time <= bus_then_bus_time:
       target = goal_bus_source
     else:
-      target = nearest_bus._destination
+      target = nearest_outer_bus._destination
 
     # if already reached target, optimal action is riding the bus
     return self._get_walking_directions(pos, target) or Action.ride_bus
-
-  def _compute_naive_optimal_action(self, pos):
-    if np.array_equal(pos, self._goal):
-      return None
-  
-    walk_time = self._calc_dist(pos, self._goal)
-
-    temp = self._destinations - self._goal
-    breakpoint()
-
-    
-
-  def _walk_then_wait_time(self, steps, pos, bus_source):
-    """
-    Returns the timestep that the agent would complete the episode at if they walked to the given bus source from
-    a given position, waited for the bus to go to the goal, rode it, then walked to the goal.
-
-    TLDR: returns the episode end time if they use the given bus
-    """
-    walk_time = self._calc_dist(pos, bus_source)
-    ride_time = 1
-    goal_bus_dest_to_goal_dist = 1  # assumes the goal is exactly 1 action away from some bus stop
-    eta = steps + walk_time + ride_time
-
-    if eta > self._max_steps:
-      return np.inf
-
-    # figure out what the interval_index will be when agent is at bus stop
-    switching_times = np.cumsum(self._switch_intervals)
-    for interval_index, t in enumerate(switching_times):
-      if eta <= t:
-        # monkeypatch env_id to check if bus will go to goal in the future
-        true_env_id = self._env_id
-        env_id = self._env_ids[interval_index]
-        self._switch_bus_permutation(env_id)
-        bus = self.get(bus_source)
-        is_goal_bus = self._calc_dist(bus._destination, self._goal) == goal_bus_dest_to_goal_dist
-        self._env_id = true_env_id
-        if is_goal_bus:
-          if interval_index == 0:
-            wait_time = 0
-          else:
-            wait_time = min(0, switching_times[interval_index - 1] - eta)
-          break
-    else:
-      wait_time = np.inf
-    
-    return walk_time + wait_time + ride_time + goal_bus_dest_to_goal_dist
-  
-  def _bus_then_wait_time(self, steps, pos, bus_destination):
-    """
-    Returns the end time if the agent takes the nearest bus to the center then takes the best bus to the goal.
-    """
-    walk_time = self._calc_dist(pos, bus_destination)
-    ride_time = 1
-    eta = steps + walk_time + ride_time
-
-    if eta > self._max_steps:
-      return np.inf
-
-    # get env_id at t=eta
-    switching_times = np.cumsum(self._switch_intervals)
-    for interval_index, t in enumerate(switching_times):
-      if eta <= t:
-        break
-    
-    # monkeypatch env_id to figure out where the bus goes
-    true_env_id = self._env_id
-    env_id = self._env_ids[interval_index]
-    self._switch_bus_permutation(env_id)
-    for nearest_bus_source, _ in self._bus_sources:
-      bus = self.get(nearest_bus_source)
-      if np.array_equal(bus._destination, bus_destination):
-        break
-    self._env_id = true_env_id
-
-    fastest_end_time = np.inf
-    for bus_source, _ in self._bus_sources:
-      end_time = self._walk_then_wait_time(eta, nearest_bus_source, bus_source)
-      fastest_end_time = min(end_time, fastest_end_time)
-    
-    return fastest_end_time
-  
-  def _calc_next_pos(self, pos, action, step):
-    next_pos = np.copy(self.agent_pos)
-    if action == Action.left:
-      next_pos[0] -= 1
-    elif action == Action.up:
-      next_pos[1] += 1
-    elif action == Action.right:
-      next_pos[0] += 1
-    elif action == Action.down:
-      next_pos[1] -= 1
-    elif action == Action.ride_bus:
-      bus = self.get(pos)
-      pass
-    else:
-      assert False, "Invalid action!"
-
-    next_pos = np.clip(next_pos, [0, 0], [self.width - 1, self.height - 1]) 
-    return next_pos
-
-  def _compute_path(self):
-    path = [self.agent_pos]
-    i = 0
-    while (optimal_action := self._compute_optimal_action(path[-1])) is not None:
-        path.append(self._calc_next_pos(path[-1], optimal_action, self._steps + i))
-        i += 1
-    return path
-    
-  def _foo(self, pos: np.ndarray):
-    if np.array_equal(pos, self._goal):
-      return None
-        
-    fastest_end_time = self._steps + self._calc_dist(pos, self._goal)
-    target = self._goal
-    for bus_source, _ in self._bus_sources:
-      end_time = self._walk_then_wait_time(self._steps, pos, bus_source)
-      if end_time < fastest_end_time:
-        fastest_end_time = end_time
-        target = bus_source
-      
-      bus_destination = self.get(bus_source)._destination
-      end_time = self._bus_then_wait_time(self._steps, pos, bus_destination)
-      if end_time < fastest_end_time:
-        fastest_end_time = end_time
-        target = bus_destination
-    
-    optimal_action = self._get_walking_directions(pos, target)
-    if optimal_action is None:
-      # TODO: detect if should be waiting or taking the bus
-      waiting = False
-      if waiting:
-        return Action.noop
-      else:
-        return Action.ride_bus
-    else:
-      return optimal_action
 
   def _process_obs(self, obs):
     optimal_action = self._compute_optimal_action(self.agent_pos)
@@ -573,84 +439,3 @@ class NonstationaryMapGridEnv(MapGridEnv):
 
   def _gen_obs(self):
     return self._process_obs(super()._gen_obs())
-
-  def _get_central_bus_end_times(self, steps, pos):
-    results = []
-    ride_time = 1
-    central_bus_sources = [bus_source for bus_source, _ in self._bus_sources]
-    eta_arr = steps + np.linalg.norm(pos - central_bus_sources, ord=1, axis=1) + ride_time
-    switching_times = np.cumsum(self._switch_intervals)
-    
-    # monkeypatch env_id
-    true_env_id = self._env_id
-    for bus_source, eta in zip(central_bus_sources, eta_arr):
-      for interval_index, t in enumerate(switching_times):
-        if eta <= t:
-          env_id = self._env_ids[interval_index]
-          self._switch_bus_permutation(env_id)
-          goes_to_goal = np.linalg.norm(self.get(bus_source)._destination - self._goal, ord=1) == 1
-          if goes_to_goal:
-            if interval_index:
-              wait_time = min(0, switching_times[interval_index - 1] - eta)
-            else:
-              wait_time = 0
-            end_time = eta + wait_time + 1  # +1 to walk from bus stop to goal
-            break
-      else:
-        end_time = np.inf
-      results.append(end_time)
-    self._env_id = true_env_id
-    return results
-
-  def _get_outer_bus_end_times(self, steps, pos):
-    results = []
-    ride_time = 1
-    eta_arr = steps + np.linalg.norm(pos - self._destinations, ord=1, axis=1) + ride_time
-    switching_times = np.cumsum(self._switch_intervals)
-
-    # monkeypatch env_id
-    true_env_id = self._env_id
-    for dest, eta in zip(self._destinations, eta_arr):
-      for interval_index, t in enumerate(switching_times):
-        if eta <= t:
-          break
-      env_id = self._env_ids[interval_index]
-      self._switch_bus_permutation(env_id)
-      end_time = min(self._get_central_bus_end_times(eta, self.get(dest)._destination))
-      results.append(end_time)
-    self._env_id = true_env_id
-    return results
-
-  def _compute_optimal_action(self, pos: np.ndarray):
-    if np.array_equal(pos, self._goal):
-      return None
-
-    best_time = self._calc_dist(pos, self._goal)
-    target = self._goal
-    waiting = False
-
-    central_bus_end_times = self._get_central_bus_end_times(self._steps, pos)
-    
-    for i, end_time in enumerate(central_bus_end_times):
-      if end_time < best_time:
-        best_time = end_time
-        target = self._bus_sources[i][0]
-        already_at_target = np.array_equal(pos, target)
-        target_goes_to_goal = np.linalg.norm(self.get(target)._destination - self._goal, ord=1) == 1
-        waiting = already_at_target and target_goes_to_goal
-    
-    outer_bus_end_times = self._get_outer_bus_end_times(self._steps, pos)
-    for i, end_time in enumerate(outer_bus_end_times):
-      if end_time < best_time:
-        best_time = end_time
-        target = self._destinations[i]
-        waiting = False  # NOTE: is is never optimal to wait at an outer bus stop
-    
-    action = self._get_walking_directions(pos, target)
-    if action is None:
-      if waiting:
-        return Action.noop
-      else:
-        return Action.ride_bus
-    else:
-      return action
