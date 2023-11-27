@@ -263,6 +263,14 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
     valid_rows = [self._row_index,]
     return DemoPolicy(self, valid_rows)
 
+  def reset(self, **kwargs):
+    obs = super().reset(**kwargs)
+    return obs, {}
+  
+  def step(self, action):
+    obs, reward, done, info = super().step(action)
+    return obs, reward, done, done, info
+
 
 # From:
 # https://github.com/maximecb/gym-miniworld/blob/master/pytorch-a2c-ppo-acktr/envs.py
@@ -279,13 +287,13 @@ class TransposeImage(gym.ObservationWrapper):
   def observation(self, observation):
     return observation.transpose(2, 1, 0)
 
-
 class PrivilegedMiniWorldEnv(meta_exploration.MetaExplorationEnv):
   _privileged_info_modes = ("env_id", "valid-indices", None)
   _refreshing_modes = ("valid-indices",)
 
   def __init__(self, env_id, wrapper, max_steps=20, mode=None):
     self.set_mode(mode)
+    super().__init__(env_id, wrapper)
 
   def set_mode(self, mode=None):
     self._refresh = mode in self._refreshing_modes
@@ -306,7 +314,7 @@ class PrivilegedMiniWorldEnv(meta_exploration.MetaExplorationEnv):
 
   def _privileged_info_space(self):
     if self._mode is None:
-      return np.array([0]), np.array([1]), np.int
+      return np.array([0]), np.array([1]), int
     raise NotImplementedError
 
   @classmethod
@@ -316,11 +324,11 @@ class PrivilegedMiniWorldEnv(meta_exploration.MetaExplorationEnv):
   @property
   def observation_space(self):
     env_id_low, env_id_high, env_id_dtype = self._env_id_space()
-    privileged_info_low, privileged_info_high, privileged_info_dtype = self._privileged_info_space()
+    # privileged_info_low, privileged_info_high, privileged_info_dtype = self._privileged_info_space()
     data = {
         "observation": self._observation_space(),
         "env_id": gym.spaces.Box(env_id_low, env_id_high, dtype=env_id_dtype),
-        "privileged_info": gym.spaces.Box(privileged_info_low, privileged_info_high, dtype=privileged_info_dtype),
+        # "privileged_info": gym.spaces.Box(privileged_info_low, privileged_info_high, dtype=privileged_info_dtype),
     }
     return gym.spaces.Dict(data)
 
@@ -337,6 +345,9 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv):
     self._base_env = ConstructionEnv()
     self._env = TransposeImage(self._base_env)
     self.action_space = self._env.action_space
+
+    # added for ELF
+    self._observation_space = self._env.observation_space
 
   # Grab instance of env and modify it, to prevent creating many envs, which
   # causes memory issues.
@@ -367,7 +378,7 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv):
     if self._mode == "valid-indices":
       low = np.array([0,] * self._base_env._num_rows)
       high = np.array([2,] * self._base_env._num_rows)
-      return low, high, np.int
+      return low, high, int
     raise NotImplementedError
 
   def _step(self, action):
@@ -380,13 +391,15 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv):
     # Don't set the seed, otherwise can cheat from initial camera angle position!
     self._env.set_row_index(self.env_id)
 
-    o = self._env.reset()
+    o, _ = self._env.reset()
+
     # Set the privileged info
-    super()._reset()
+    # super()._reset()
+
     return o
 
-  def _observation_space(self):
-    return self._env.observation_space
+  # def _observation_space(self):
+  #   return self._env.observation_space
 
   @classmethod
   def env_ids(cls):
@@ -395,7 +408,7 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv):
   def _env_id_space(self):
     low = np.array([0])
     high = np.array([self._base_env._num_rows])
-    dtype = np.int
+    dtype = int
     return low, high, dtype
 
   def render(self, mode="human"):
@@ -407,7 +420,7 @@ class MiniWorldConstruction(PrivilegedMiniWorldEnv):
     image.thumbnail((320, 240))
     image = render.Render(image)
     image.write_text("Env ID: {}".format(self.env_id))
-    image.write_text(f"Privileged Info ({self._mode}): {self._privileged_info}")
+    # image.write_text(f"Privileged Info ({self._mode}): {self._privileged_info}")
     image.write_text(f"Signs: {[sign.str for sign in self._base_env._signs]}")
     return image
 
@@ -478,37 +491,58 @@ class DemoPolicy(policy.Policy):
 construction_instance = MiniWorldConstruction(0, None)
 
 
-class ELFConstructionEnv(ConstructionEnv):
+class ELFConstructionEnv(MiniWorldConstruction):
   _gym_disable_underscore_compat = True
 
   def __init__(self, size=10, max_episode_steps=40, row_index=0):
-    # added for ELF
-    self._rng = None
-    self.max_steps = max_episode_steps
-    
     super().__init__(size, max_episode_steps, row_index)
 
-    # transpose observation space to match ELF's Vizdoom models
-    h, w, c = self.observation_space.shape
-    self.observation_space = gym.spaces.Box(
-            low=0,
-            high=255,
-            shape=(c, h, w),
-            dtype=np.uint8
-    )
+    # added for ELF
+    self._last_reward = None
+    self._last_action = None
+    self._rng = None
+    self.max_steps = max_episode_steps    
+    self._observation_space = {
+      "image": self._observation_space,
+      "expert": gym.spaces.Box(0, len(self.action_cls), shape=(), dtype=self.action_cls),
+      "step": gym.spaces.Box(0, self.max_steps, shape=(), dtype=int)
+    }
+
+  @property
+  def observation_space(self):
+    return self._observation_space
+
+  def _compute_optimal_action(self, pos):
+    # TODO: complete this
+    return 0
+
+  def _process_obs(self, obs):
+    optimal_action = self._compute_optimal_action("TEMPORARY STRING!!~~~~~~~~~~~~")
+    obs = {"image": obs, "expert": optimal_action, "step": self._env.step_count}
+    return obs
   
   def reset(self, seed=None):
-    # create new env_id before calling super reset (which places objects)
-    if seed is not None:
-        self._rng = np.random.RandomState(seed)
-    assert self._rng is not None
+    self._rng = np.random.RandomState(seed)
     self._env_id = self.create_env_id(self._rng.randint(1e5))
-    
     obs = self._reset()
-    obs = np.transpose(obs, axes=(2, 0, 1))
-    return obs, {}
 
-  def step(self):
-    obs, reward, done, info = super().step()
-    obs = np.transpose(obs, axes=(2, 0, 1))
-    return obs, reward, done, info
+    # rendering
+    self.last_reward = None
+    self.last_action = None
+    return self._process_obs(obs), {}
+
+  def step(self, action):
+    obs, reward, done, _, info = super()._step(action)
+    self.last_action = self.action_cls(action)
+    self.last_reward = reward
+    self.last_render = self.render()
+    return self._process_obs(obs), reward, done, done, info
+
+  def render(self, mode="human"):
+    image = super().render()
+    optimal_action = self._compute_optimal_action(self.agent_pos)
+    image.write_text("Expert: {}".format(optimal_action.__repr__()))  # optimal next action
+    image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
+    image.write_text("Reward: {}".format(self.last_reward))  # last reward
+    image.write_text("Timestep: {}".format(self._env.step_count))  # current timestep
+    return image

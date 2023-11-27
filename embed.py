@@ -1231,3 +1231,39 @@ class ExperienceEmbedder(Embedder):
       inputs = get_inputs(key, instruction_states)
       embeddings.append(embedder(inputs))
     return self._final_layer(F.relu(torch.cat(embeddings, -1)))
+
+
+class MiniWorldEmbedder(Embedder):
+  """Embeds 80x60 MiniWorld inputs.
+
+  Network taken from gym-miniworld/.
+  """
+  def __init__(self, observation_space, embed_dim):
+    super().__init__(embed_dim)
+
+    # Architecture from gym-miniworld
+    # For 80x60 input
+    # num_inputs = observation_space.shape[0]
+    num_inputs = observation_space['image'][0]
+
+    self._network = nn.Sequential(
+        nn.Conv2d(num_inputs, 32, kernel_size=5, stride=2),
+        nn.ReLU(),
+
+        nn.Conv2d(32, 32, kernel_size=5, stride=2),
+        nn.ReLU(),
+
+        nn.Conv2d(32, 32, kernel_size=4, stride=2),
+        nn.ReLU(),
+
+        Flatten(),
+
+        nn.Linear(32 * 7 * 5, embed_dim),
+    )
+
+  def forward(self, obs):
+    # (batch_size, 80, 60, 3) --> NOTE: this is wrong
+    # tensor = torch.stack(obs) / 255.
+    tensor = obs
+    tensor = tensor / 255
+    return self._network(tensor)

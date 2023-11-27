@@ -20,6 +20,27 @@ def get_obss_preprocessor(obs_space, image_dtype=torch.float):
                     obss, device=device, dtype=image_dtype)
             })
 
+    # handles construction env
+    elif isinstance(obs_space, dict):
+        obs_space["image"] = obs_space["image"].shape
+
+        def preprocess_obss(obss, device=None):
+            processed = {
+                "image": preprocess_images(
+                    [obs["image"] for obs in obss],
+                    device=device,
+                    dtype=image_dtype
+                ),
+            }
+            if "expert" in obss[0]:
+                processed["expert"] = preprocess_long(
+                    [obs['expert'] for obs in obss], device=device)
+            if "step" in obss[0]:
+                processed["step"] = preprocess_long(
+                    [obs['step'] for obs in obss], device=device)
+            return torch_ac.DictList(processed)
+
+
     # Check if it is a MiniGrid observation space
     elif (
         isinstance(obs_space, gym.spaces.Dict) and

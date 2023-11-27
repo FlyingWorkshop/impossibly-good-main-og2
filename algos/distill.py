@@ -11,6 +11,7 @@ from torch_ac.utils import DictList, ParallelEnv
 from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
 from envs.city import NonstationaryInstructionWrapper
+from envs.construction import ELFConstructionEnv
 
 
 class Distill:
@@ -271,7 +272,7 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv)):
+                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, ELFConstructionEnv)):
                     render = self.env.envs[0].render('human').image()
                     renders.append(render)
                 elif isinstance(self.env.envs[0], NonstationaryInstructionWrapper):
@@ -315,7 +316,7 @@ class Distill:
             
             done_count += sum(done)
 
-            if self.render and done[0] and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
+            if self.render and done[0] and isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper, ELFConstructionEnv)):
                 renders.append(self.env.envs[0].last_render.image())
             
             # compute reward surrogate

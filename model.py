@@ -21,10 +21,11 @@ NUM_COLORS = max(COLOR_TO_IDX.values())+1
 
 from torch_ac.model import ACModel, RecurrentACModel
 
-from embed import SimpleGridStateEmbedder
+from embed import SimpleGridStateEmbedder, MiniWorldEmbedder
 from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
 from envs.city import NonstationaryInstructionWrapper
+from envs.construction import ELFConstructionEnv
 
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
 def init_params(m):
@@ -47,11 +48,22 @@ class GridEncoder(Module):
         return x
 
 
+# class ConstructionEncoder(Module):
+#     def __init__(self, env, embed_dim) -> None:
+#         super().__init__()
+#         self._embedder = MiniWorldEmbedder(env.observation_space, embed_dim)
+
+#     def forward(self, observation):
+#         x = self._embedder(tuple(observation))
+#         return x
+    
+
 class DREAMEncoder(Module):
     factory = {
         LightDarkEnv: GridEncoder,
         TigerDoorEnv: GridEncoder,
-        NonstationaryInstructionWrapper: GridEncoder,  # TODO: check w/ Annie
+        NonstationaryInstructionWrapper: GridEncoder,
+        # ELFConstructionEnv: ConstructionEncoder,
     }
 
     def __init__(self, env, embedding_channels=16):
@@ -61,6 +73,10 @@ class DREAMEncoder(Module):
 
     def forward(self, obs):
         x = self.embedder(obs.observation)
+        # if "observation" in obs.keys():
+            # x = self.embedder(obs.observation)
+        # else:
+        #     x = self.embedder(obs.image)
         return x
 
 
@@ -177,7 +193,7 @@ class ImpossiblyGoodACModel(Module):
     ):
         super().__init__()
 
-        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper)):
+        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper, ELFConstructionEnv)):
             self.encoder = DREAMEncoder(env, embedding_channels=embedding_channels)
         else:
             self.encoder = ImpossiblyGoodEmbeddingEncoder(
@@ -356,7 +372,8 @@ class ImpossiblyGoodACPolicy(Module, ACModel):
 class ImpossiblyGoodFollowerExplorerPolicy(Module, RecurrentACModel):
     recurrent = False
     use_memory = False
-    def __init__(self, obs_space,
+    def __init__(self, 
+        obs_space,
         act_space,
         embedding_channels=16,
         hidden_channels=256,
@@ -369,7 +386,7 @@ class ImpossiblyGoodFollowerExplorerPolicy(Module, RecurrentACModel):
             h, w = obs_space['image'][:2]
             num_actions = act_space.n
             self.model = ImpossiblyGoodFollowerExplorerModel(
-                h, w, num_actions, embedding_channels, hidden_channels)
+                h, w, num_actions, embedding_channels, hidden_channels, env=env)
         else:
             h = env.height
             w = env.width

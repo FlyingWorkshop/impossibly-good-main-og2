@@ -7,6 +7,9 @@ from torch.distributions import Categorical
 
 from ltron_torch.models.padding import make_padding_mask
 
+from envs.construction import ELFConstructionEnv
+from embed import MiniWorldEmbedder
+
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
 def init_params(m):
     classname = m.__class__.__name__
@@ -121,7 +124,7 @@ class ImpossiblyGoodImageEncoder(nn.Module):
             return x
 
 class ImpossiblyGoodVizdoomACPolicy(nn.Module):
-    def __init__(self, obs_space, action_space, use_memory=False):
+    def __init__(self, obs_space, action_space, use_memory=False, env=None):
         super().__init__()
         
         self.mode = 'lstm' #'attention' # 'lstm'
@@ -139,8 +142,11 @@ class ImpossiblyGoodVizdoomACPolicy(nn.Module):
         c, h, w = obs_space['image']
         
         if self.mode == 'lstm':
-            self.encoder = ImpossiblyGoodImageEncoder(
-                h, w, input_dimensions=c, use_memory=use_memory)
+            if env and isinstance(env, ELFConstructionEnv):
+                self.encoder = MiniWorldEmbedder(obs_space, embed_dim=512)
+            else:
+                self.encoder = ImpossiblyGoodImageEncoder(
+                    h, w, input_dimensions=c, use_memory=use_memory)
         elif self.mode == 'attention':
             self.encoder = ImpossiblyGoodImageMemoryEncoder(
                 h, w, input_dimensions=c)
@@ -220,8 +226,8 @@ class ImpossiblyGoodVizdoomOldFollowerExplorerPolicy(nn.Module):
 class ImpossiblyGoodVizdoomFollowerExplorerPolicy(
     ImpossiblyGoodVizdoomACPolicy
 ):
-    def __init__(self, observation_space, action_space, use_memory=False):
-        super().__init__(observation_space, action_space, use_memory=use_memory)
+    def __init__(self, observation_space, action_space, use_memory=False, env=None):
+        super().__init__(observation_space, action_space, use_memory=use_memory, env=env)
         #self.follower_actor = nn.Linear(512, action_space.n)
         #self.follower_critic = nn.Linear(512, 1)
         self.follower_actor = ImpossiblyGoodDecoderHead(action_space.n)

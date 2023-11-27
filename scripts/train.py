@@ -188,12 +188,12 @@ if __name__ == '__main__':
         if 'vizdoom' in args.env.lower():
             acmodel = ImpossiblyGoodVizdoomFollowerExplorerPolicy(
                 obs_space, envs[0].action_space, use_memory=args.mem)
-        elif 'construction' in args.env.lower():
-            acmodel = ImpossiblyGoodVizdoomFollowerExplorerPolicy(
-                obs_space, envs[0].action_space, use_memory=args.mem)
-        elif "tiger" in args.env.lower() or "light" in args.env.lower() or "nonstationary" in args.env.lower():
+        elif any(s in args.env.lower() for s in ("tiger", "light", "nonstationary")):
             acmodel = ImpossiblyGoodFollowerExplorerPolicy(
                 obs_space, envs[0].action_space, env=envs[0])
+        elif "construction" in args.env.lower():
+            acmodel = ImpossiblyGoodVizdoomFollowerExplorerPolicy(
+                obs_space, envs[0].action_space, use_memory=args.mem, env=envs[0])
         else:
             acmodel = ImpossiblyGoodFollowerExplorerPolicy(obs_space, envs[0].action_space)
     else:
@@ -227,10 +227,16 @@ if __name__ == '__main__':
         preprocess_obss,
         render=args.render,
     )
+
+    if isinstance(acmodel, ImpossiblyGoodVizdoomFollowerExplorerPolicy):
+        follower = acmodel.follower
+    else:
+        follower = acmodel.model.follower
+
     evaluator2 = Evaluator(
         args.env,
         args.procs,
-        acmodel.model.follower,
+        follower,
         device,
         preprocess_obss,
         render=args.render,
@@ -728,7 +734,8 @@ if __name__ == '__main__':
                 eval_log, eval_explorer_renders = evaluator.evaluate(args.eval_episodes, args.eval_argmax)
                 _, eval_follower_renders = evaluator2.evaluate(args.eval_episodes, args.eval_argmax)
                 eval_log['num_frame'] = num_frames
-                # NOTE: changed this from num_frames to total_completed_episodes
+
+                # TODO: changed this from num_frames to total_completed_episodes
                 return_stats = eval_log['return_stats']
                 tb_writer.add_scalar(
                     'eval_return_mean', return_stats['mean'], total_completed_episodes)
