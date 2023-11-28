@@ -187,6 +187,11 @@ def register_impossibly_good_envs():
         entry_point='envs.city:NonstationaryMapGridEnv',
         order_enforce=False,
     )
+    register(
+        id='ImpossiblyGood-Map-v0',
+        entry_point='envs.city:MapGridEnv',
+        order_enforce=False,
+    )
 
     # Miniworld
     register(

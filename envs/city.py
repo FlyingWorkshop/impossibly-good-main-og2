@@ -32,6 +32,7 @@ class InstructionWrapper(meta_exploration.InstructionWrapper):
       done = True
     elif action == grid.Action.end_episode:
       reward -= self.steps_remaining * 0.1  # penalize ending the episode
+    self.env.last_reward = reward
     return reward, done
 
   def _generate_instructions(self, test=False):
@@ -40,6 +41,7 @@ class InstructionWrapper(meta_exploration.InstructionWrapper):
     goals = [np.array((0, 0)), np.array((8, 8)),
              np.array((0, 8)), np.array((8, 0))]
     goal = goals[self._random.randint(len(goals))]
+    self.env._goal = goal
     return goal
 
   def render(self, mode="human"):
@@ -155,7 +157,6 @@ class CityGridEnv(grid.GridEnv):
 
 class MapGridEnv(CityGridEnv):
   """Includes a map that tells the bus orientations."""
-
   def _observation_space(self):
     low, high, dtype = super()._observation_space()
     # add dim for map
@@ -184,6 +185,105 @@ class MapGridEnv(CityGridEnv):
     image = super().render(mode=mode)
     image.draw_rectangle(self._map_pos, 0.4, "black")
     return image
+
+
+class ELFMapGridEnv(MapGridEnv):
+  _gym_disable_underscore_compat = True
+
+  def __init__(self, env_id, wrapper, max_steps=20):
+    super().__init__(env_id, wrapper, max_steps)
+
+    # added for ELF
+    self.last_action = None
+    self.last_reward = None
+    self._rng = None
+    self.max_steps = self._max_steps
+    self.obs_len = 6
+
+  @property
+  def observation_space(self):
+    observation_low, observation_high, _ = self._observation_space()
+    observation_low = np.concatenate((observation_low, [0, 0]))
+    observation_high = np.concatenate((observation_high, [self._width, self._height]))
+    env_id_low, env_id_high, dtype = self._env_id_space()
+    privileged_info_low, privileged_info_high, dtype = self._privileged_info_space()
+    data = {
+        "observation": gym.spaces.Box(observation_low, observation_high, dtype=dtype),
+        "env_id": gym.spaces.Box(env_id_low, env_id_high, dtype=dtype),
+        "privileged_info": gym.spaces.Box(privileged_info_low, privileged_info_high, dtype=dtype),
+    }
+    return gym.spaces.Dict(data)
+
+  def reset(self, seed=None):
+      # we do this render so that we capture the last timestep in episodes
+      if hasattr(self, "_agent_pos"):
+          self.last_render = self.render()
+
+      # create new env_id before calling super reset (which places objects)
+      if seed is not None:
+          self._rng = np.random.RandomState(seed)
+      assert self._rng is not None
+      self._env_id = self.create_env_id(self._rng.randint(1e5))
+      
+      obs = self._reset()
+
+      # rendering
+      self.last_reward = None
+      self.last_action = None
+
+      return obs, {}
+
+  def step(self, action):
+    obs, reward, done, info = self._step(action)
+    self.last_action = Action(action)
+    self.last_reward = reward
+    self.last_render = self.render()
+    return obs, reward, done, done, info
+
+  def render(self, mode="human"):
+    image = GridRender(self.width, self.height)
+    image.draw_rectangle(self.agent_pos, 0.6, "red")
+    for x, col in enumerate(self._grid):
+      for y, obj in enumerate(col):
+        if obj is not None:
+          image.draw_rectangle(np.array((x, y)), obj.size, obj.color)
+    for pos in self._history:
+      image.draw_rectangle(pos, 0.2, "orange")
+    image.write_text(self.text_description())
+    state = self._gen_obs()
+    obs = np.concatenate((state['observation'], self._goal))
+    image.write_text("Current state: {}".format(obs))
+    image.write_text("Env ID: {}".format(self.env_id))
+    image.draw_rectangle(self._map_pos, 0.4, "black")
+    image.draw_rectangle(self._goal, 0.5, "green")
+    image.write_text("Expert: {}".format(state['expert'].__repr__()))  # optimal next action
+    image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
+    image.write_text("Reward: {}".format(self.last_reward))  # last reward
+    image.write_text("Timestep: {}".format(self._steps))  # current timestep
+    path = self._get_path()
+    for pos in path:
+      image.draw_rectangle(pos, 0.1, "indigo")
+    return image
+  
+  def _process_obs(self, obs):
+    optimal_action = self._compute_optimal_action(self.agent_pos)
+    obs = {"observation": obs, "expert": optimal_action, "step": self._steps}
+    return obs
+
+  def _gen_obs(self):
+    return self._process_obs(super()._gen_obs())
+
+  def _get_path(self):
+    path = [self.agent_pos]
+    while (optimal_action := self._compute_optimal_action(path[-1])) is not None:
+        if len(path) > self.max_steps:
+          break
+        path.append(self._calc_next_pos(path[-1], optimal_action))
+    return path 
+  
+  def _compute_optimal_action(self, pos: np.ndarray):
+    return Action.up
+
 
 
 class NonstationaryMapGridEnv(MapGridEnv):

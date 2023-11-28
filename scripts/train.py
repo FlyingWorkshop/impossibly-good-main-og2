@@ -188,7 +188,7 @@ if __name__ == '__main__':
         if 'vizdoom' in args.env.lower():
             acmodel = ImpossiblyGoodVizdoomFollowerExplorerPolicy(
                 obs_space, envs[0].action_space, use_memory=args.mem)
-        elif any(s in args.env.lower() for s in ("tiger", "light", "nonstationary")):
+        elif any(s in args.env.lower() for s in ("tiger", "light", "map")):
             acmodel = ImpossiblyGoodFollowerExplorerPolicy(
                 obs_space, envs[0].action_space, env=envs[0])
         elif "construction" in args.env.lower():

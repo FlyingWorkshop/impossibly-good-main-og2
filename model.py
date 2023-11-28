@@ -24,7 +24,7 @@ from torch_ac.model import ACModel, RecurrentACModel
 from embed import SimpleGridStateEmbedder, MiniWorldEmbedder
 from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
-from envs.city import NonstationaryInstructionWrapper
+from envs.city import NonstationaryInstructionWrapper, InstructionWrapper
 from envs.construction import ELFConstructionEnv
 
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
@@ -46,16 +46,6 @@ class GridEncoder(Module):
     def forward(self, observation):
         x = self._embedder(tuple(observation))
         return x
-
-
-# class ConstructionEncoder(Module):
-#     def __init__(self, env, embed_dim) -> None:
-#         super().__init__()
-#         self._embedder = MiniWorldEmbedder(env.observation_space, embed_dim)
-
-#     def forward(self, observation):
-#         x = self._embedder(tuple(observation))
-#         return x
     
 
 class DREAMEncoder(Module):
@@ -63,7 +53,7 @@ class DREAMEncoder(Module):
         LightDarkEnv: GridEncoder,
         TigerDoorEnv: GridEncoder,
         NonstationaryInstructionWrapper: GridEncoder,
-        # ELFConstructionEnv: ConstructionEncoder,
+        InstructionWrapper: GridEncoder
     }
 
     def __init__(self, env, embedding_channels=16):
@@ -193,7 +183,7 @@ class ImpossiblyGoodACModel(Module):
     ):
         super().__init__()
 
-        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper, ELFConstructionEnv)):
+        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper, ELFConstructionEnv, InstructionWrapper)):
             self.encoder = DREAMEncoder(env, embedding_channels=embedding_channels)
         else:
             self.encoder = ImpossiblyGoodEmbeddingEncoder(

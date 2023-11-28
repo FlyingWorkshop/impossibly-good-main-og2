@@ -432,18 +432,43 @@ class DemoPolicy(policy.Policy):
 
   def __init__(self, env, valid_rows):
     self._env = env
+    self._valid_rows = valid_rows
     row = np.random.choice(valid_rows)
-    self._target = np.array([self._env._size, 0, (0.5 * row + 0.15) * self._env._size])
+    self._target = self._make_target(row)
     self._around_corner = False
+    self._first_route = None
 
-  def act(self, state, hidden_state, test=False):
-    del state, hidden_state
+  def _make_target(self, row):
+    return np.array([self._env._size, 0, (0.5 * row + 0.15) * self._env._size])
 
-    if not self._around_corner:
-      corner = np.array([0.3 * self._env._size, 0, self._target[2]])
-      goal_vec = corner - self._env.agent.pos
+  def _get_row(self):
+    pos_x = self._env.agent.pos[0]
+    pos_z = self._env.agent.pos[2]
+    rows = (-1, -1, 0, 1, 2)
+    for room, row in zip(self._env.rooms, rows):
+      if (room.min_x <= pos_x <= room.max_x) and (room.min_z <= pos_z <= room.max_z):
+        return row
+    assert False, "Unknown room!"
+  
+
+  def act(self):
+    goal_vec = None
+    row = self._get_row()
+    if row in self._valid_rows:
+      # ensures the agent doesn't leave a valid row even if it wasn't randomly selected at __init__
+      self._target = self._make_target(row)
     else:
-      goal_vec = self._target - self._env.agent.pos
+      # turn around and walk back
+      start_room = self._env.rooms[0]
+      target = np.array([start_room.max_x, 0, (0.5 * row + 0.15) * self._env._size])
+      goal_vec = target - self._env.agent.pos
+
+    if goal_vec is None:
+      if not self._around_corner:
+        corner = np.array([0.3 * self._env._size, 0, self._target[2]])
+        goal_vec = corner - self._env.agent.pos
+      else:
+        goal_vec = self._target - self._env.agent.pos
     goal_dir = goal_vec / np.linalg.norm(goal_vec)
 
     # More than ~22.5 degrees off in either direction
@@ -463,10 +488,8 @@ class DemoPolicy(policy.Policy):
     step = (self._env.agent.pos +
             self._env.agent.dir_vec * self._env.params.get_max("forward_step"))
     # Need to test is True for specifically hitting walls
-    collision = (
-        self._env.intersect(self._env.agent, step, self._env.agent.radius))
-    hit_wall = (collision is True or collision and
-                not isinstance(collision, gym_miniworld.entity.Box))
+    collision = (self._env.intersect(self._env.agent, step, self._env.agent.radius))
+    hit_wall = (collision is True or collision and not isinstance(collision, gym_miniworld.entity.Box))
     if hit_wall:
       updated_dir = self._env.agent.dir + math.pi / 4
       updated_dir_vec = np.array(
@@ -512,12 +535,11 @@ class ELFConstructionEnv(MiniWorldConstruction):
   def observation_space(self):
     return self._observation_space
 
-  def _compute_optimal_action(self, pos):
-    # TODO: complete this
-    return 0
+  def _compute_optimal_action(self):
+    return self.demo_policy().act()
 
   def _process_obs(self, obs):
-    optimal_action = self._compute_optimal_action("TEMPORARY STRING!!~~~~~~~~~~~~")
+    optimal_action, _ = self._compute_optimal_action()
     obs = {"image": obs, "expert": optimal_action, "step": self._env.step_count}
     return obs
   
@@ -540,7 +562,7 @@ class ELFConstructionEnv(MiniWorldConstruction):
 
   def render(self, mode="human"):
     image = super().render()
-    optimal_action = self._compute_optimal_action(self.agent_pos)
+    optimal_action, _ = self._compute_optimal_action()
     image.write_text("Expert: {}".format(optimal_action.__repr__()))  # optimal next action
     image.write_text("Action: {}".format(self.last_action.__repr__()))  # last action
     image.write_text("Reward: {}".format(self.last_reward))  # last reward
