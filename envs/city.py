@@ -190,7 +190,7 @@ class MapGridEnv(CityGridEnv):
 class ELFMapGridEnv(MapGridEnv):
   _gym_disable_underscore_compat = True
 
-  def __init__(self, env_id, wrapper, max_steps=20):
+  def __init__(self, env_id=0, wrapper=None, max_steps=20):
     super().__init__(env_id, wrapper, max_steps)
 
     # added for ELF
@@ -206,11 +206,9 @@ class ELFMapGridEnv(MapGridEnv):
     observation_low = np.concatenate((observation_low, [0, 0]))
     observation_high = np.concatenate((observation_high, [self._width, self._height]))
     env_id_low, env_id_high, dtype = self._env_id_space()
-    privileged_info_low, privileged_info_high, dtype = self._privileged_info_space()
     data = {
         "observation": gym.spaces.Box(observation_low, observation_high, dtype=dtype),
         "env_id": gym.spaces.Box(env_id_low, env_id_high, dtype=dtype),
-        "privileged_info": gym.spaces.Box(privileged_info_low, privileged_info_high, dtype=dtype),
     }
     return gym.spaces.Dict(data)
 
@@ -232,6 +230,24 @@ class ELFMapGridEnv(MapGridEnv):
       self.last_action = None
 
       return obs, {}
+
+  def _calc_next_pos(self, pos, action):
+    next_pos = np.copy(pos)
+    if action == Action.left:
+      next_pos[0] -= 1
+    elif action == Action.up:
+      next_pos[1] += 1
+    elif action == Action.right:
+      next_pos[0] += 1
+    elif action == Action.down:
+      next_pos[1] -= 1
+    elif action == Action.noop:
+      pass
+    elif action == Action.ride_bus:
+      obj = self.get(pos)
+      if isinstance(obj, Bus):
+        next_pos = np.copy(obj._destination)
+    return next_pos
 
   def step(self, action):
     obs, reward, done, info = self._step(action)
@@ -280,9 +296,76 @@ class ELFMapGridEnv(MapGridEnv):
           break
         path.append(self._calc_next_pos(path[-1], optimal_action))
     return path 
+
+  @staticmethod     
+  def _calc_dist(a, b):
+    return np.linalg.norm(a - b, ord=1)
+
+  def _get_goal_bus_source(self):
+    distances = np.linalg.norm(self._destinations - self._goal, ord=1, axis=1)
+    i = np.argwhere(distances == 1)[0][0]
+    bus = self.get(self._destinations[i])._destination
+    for bus_source, _ in self._bus_sources:
+      bus = self.get(bus_source)
+      if np.linalg.norm(bus._destination - self._goal, ord=1) == 1:
+        return bus_source
+
+  @staticmethod
+  def _get_walking_directions(start, stop):
+    if start[0] < stop[0]:
+      return Action.right
+    elif start[0] > stop[0]:
+      return Action.left
+    elif start[1] < stop[1]:
+      return Action.up
+    elif start[1] > stop[1]:
+      return Action.down
+    else:
+      return None
   
   def _compute_optimal_action(self, pos: np.ndarray):
-    return Action.up
+    """
+    Compute the naive (non-future-aware) optimal action
+
+    Goal: get to goal as quickly as possible
+    Strategy:
+    - the agent is either (1) near goal, (2) near center, or (3) near non-goal corner.
+    (1): walk to goal
+    (2): take goal bus to goal
+    (3): take nearest bus to center
+    """
+    if np.array_equal(pos, self._goal):
+      return None
+
+    # Case (1):
+    walk_time = self._calc_dist(pos, self._goal)
+
+    # Case (2):
+    bus1_source = self._get_goal_bus_source()
+    walk_to_bus1_time = self._calc_dist(pos, bus1_source) 
+    walk_then_bus_time = walk_to_bus1_time + (ride_time := 1) + (dest_to_goal_time := 1)
+
+    # Case (3):
+    i = np.argmin(np.linalg.norm(pos - self._destinations, ord=1, axis=1) + ride_time)
+    bus2_source = self._destinations[i]
+    bus1_dest_to_bus1_source_time = 2
+    bus_then_bus_time = (
+      self._calc_dist(pos, bus2_source) + ride_time + bus1_dest_to_bus1_source_time
+      + ride_time + dest_to_goal_time
+    )
+
+    if walk_time == min(walk_time, walk_then_bus_time, bus_then_bus_time):
+      target = self._goal
+    elif walk_then_bus_time <= bus_then_bus_time:
+      target = bus1_source
+    else:
+      target = bus2_source
+
+    if np.array_equal(target, pos):
+      return Action.ride_bus
+    else:
+      return self._get_walking_directions(pos, target)
+
 
 
 

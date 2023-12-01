@@ -189,7 +189,7 @@ def register_impossibly_good_envs():
     )
     register(
         id='ImpossiblyGood-Map-v0',
-        entry_point='envs.city:MapGridEnv',
+        entry_point='envs.city:ELFMapGridEnv',
         order_enforce=False,
     )
 

@@ -85,7 +85,7 @@ class Evaluator:
             if self.render:
                 if dones[0]:
                     renders.append(self.env.envs[0].last_render.image())
-                if isinstance(self.env.envs[0], NonstationaryInstructionWrapper, InstructionWrapper):
+                if isinstance(self.env.envs[0], (NonstationaryInstructionWrapper, InstructionWrapper)):
                     render = self.env.envs[0].env.render('human').image()
                 else:
                     render = self.env.envs[0].render('human').image()

@@ -182,8 +182,7 @@ class Distill:
         renders = []
         done_count = 0
 
-        for i in range(self.num_frames_per_proc):
-            
+        for i in range(self.num_frames_per_proc):            
             # convert observations to tensors
             preprocessed_obs = self.preprocess_obss(
                 self.obs, device=self.device)
@@ -275,7 +274,7 @@ class Distill:
                 if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, ELFConstructionEnv)):
                     render = self.env.envs[0].render('human').image()
                     renders.append(render)
-                elif isinstance(self.env.envs[0], NonstationaryInstructionWrapper, InstructionWrapper):
+                elif isinstance(self.env.envs[0], (NonstationaryInstructionWrapper, InstructionWrapper)):
                     render = self.env.envs[0].env.render('human').image()
                     renders.append(render)
                 else:
@@ -512,7 +511,7 @@ class Distill:
         self.log_num_frames = self.log_num_frames[-self.num_procs:]
 
         logs["done_count"] = done_count
-        
+
         return exps, logs, renders
     
     def update_parameters(self, exps):

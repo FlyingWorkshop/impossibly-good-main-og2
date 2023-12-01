@@ -257,7 +257,7 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
       done = True
       reward = 1.0
 
-    return obs, reward, done, info
+    return obs, reward, done, done, info
 
   def demo_policy(self):
     valid_rows = [self._row_index,]
@@ -266,10 +266,6 @@ class ConstructionEnv(miniworld.MiniWorldEnv):
   def reset(self, **kwargs):
     obs = super().reset(**kwargs)
     return obs, {}
-  
-  def step(self, action):
-    obs, reward, done, info = super().step(action)
-    return obs, reward, done, done, info
 
 
 # From:
@@ -433,13 +429,29 @@ class DemoPolicy(policy.Policy):
   def __init__(self, env, valid_rows):
     self._env = env
     self._valid_rows = valid_rows
-    row = np.random.choice(valid_rows)
+    row = self._get_nearest_valid_row()
     self._target = self._make_target(row)
     self._around_corner = False
     self._first_route = None
 
   def _make_target(self, row):
     return np.array([self._env._size, 0, (0.5 * row + 0.15) * self._env._size])
+
+  def _get_nearest_valid_row(self):
+    nearest_dist = np.inf
+    nearest_row = None
+    pos_z = self._env.agent.pos[2]
+    for i in self._valid_rows:
+      room = self._env.rooms[2 + i]
+      if room.min_z <= pos_z <= room.max_z:
+        nearest_row = i
+        break
+      else:
+        dist = np.minimum(np.abs(pos_z - room.min_z), np.abs(pos_z - room.max_z))
+        if dist <= nearest_dist:
+          nearest_dist = dist
+          nearest_row = i
+    return nearest_row
 
   def _get_row(self):
     pos_x = self._env.agent.pos[0]
@@ -448,19 +460,15 @@ class DemoPolicy(policy.Policy):
     for room, row in zip(self._env.rooms, rows):
       if (room.min_x <= pos_x <= room.max_x) and (room.min_z <= pos_z <= room.max_z):
         return row
-    assert False, "Unknown room!"
-  
+    assert False, "Unknown room!"  
 
   def act(self):
     goal_vec = None
-    row = self._get_row()
-    if row in self._valid_rows:
-      # ensures the agent doesn't leave a valid row even if it wasn't randomly selected at __init__
-      self._target = self._make_target(row)
-    else:
+    self._target = self._make_target(self._get_nearest_valid_row())
+    if self._get_row() not in self._valid_rows:
       # turn around and walk back
       start_room = self._env.rooms[0]
-      target = np.array([start_room.max_x, 0, (0.5 * row + 0.15) * self._env._size])
+      target = np.array([np.mean([start_room.max_x, start_room.min_x]), 0, self._env.agent.pos[2]])
       goal_vec = target - self._env.agent.pos
 
     if goal_vec is None:

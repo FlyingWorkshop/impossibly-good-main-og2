@@ -4,7 +4,11 @@ For debugging, just add `procs=1`
 
 # DEBUGGING
 ```bash
-python scripts/train.py --algo='fe' --env='ImpossiblyGood-Map-v0' --render --eval-argmax --eval-episodes=10 --procs=1
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Construction-v0' --render --eval-argmax --eval-episodes=10 --eval-frequency=1 --procs=1
+
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Map-v0' --render --eval-argmax --eval-episodes=10 --procs=1
+
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-TigerDoor-v0' --render --eval-argmax --eval-episodes=10 --procs=1
 ```
 
 ## DREAM Envs
