@@ -3,11 +3,24 @@
 For debugging, just add `procs=1`
 
 # DEBUGGING
+
+## Overcooked
+```
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Overcooked-v0' --render --eval-argmax --eval-episodes=10 --eval-frequency=1 --procs=1
+```
+
+## Construction
 ```bash
 xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Construction-v0' --render --eval-argmax --eval-episodes=10 --eval-frequency=1 --procs=1
+```
 
+## Map
+```
 xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Map-v0' --render --eval-argmax --eval-episodes=10 --procs=1
+```
 
+## TigerDoor
+```
 xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-TigerDoor-v0' --render --eval-argmax --eval-episodes=10 --procs=1
 ```
 

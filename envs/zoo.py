@@ -200,6 +200,13 @@ def register_impossibly_good_envs():
         order_enforce=False,
     )
 
+    # Overcooked
+    register(
+        id='ImpossiblyGood-Overcooked-v0',
+        entry_point='envs.asymmetric_advantages:ELFOvercooked',
+        order_enforce=False,
+    )
+
 class MatchingColorEnv(MiniGridEnv):
     def __init__(self,
         unseen_color='grey',
