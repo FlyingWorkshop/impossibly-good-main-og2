@@ -29,7 +29,8 @@ class Evaluator:
         envs = []
         for i in range(num_procs):
             #if i == 0:
-            env = utils.make_env(env_name, seed + 10000*i)
+            # env = utils.make_env(env_name, seed + 10000*i)
+            env = utils.make_env(env_name, seed=i, num_procs=num_procs)
             #else:
             #    env = DeferredWrapper(env_name, seed + 10000*i)
             envs.append(env)

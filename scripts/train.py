@@ -41,6 +41,9 @@ register_vizdoom_envs()
 
 parser = argparse.ArgumentParser()
 
+# NOTE: Logan added parameters
+parser.add_argument("--algo-seed", required=True)
+
 # General parameters
 parser.add_argument("--algo", required=True,
                     help="algorithm to use: a2c | ppo | bc | opbc | fe (REQUIRED)")
@@ -146,12 +149,14 @@ if __name__ == '__main__':
     # load environments
     envs = []
     for i in range(args.procs):
-        env = utils.make_env(args.env, args.seed + 10000 * i)
+        # NOTE: Logan --> modified seeding to align w/ other baselines
+        env = utils.make_env(args.env, seed=i, num_procs=args.procs)
         envs.append(env)
     if args.algo in ('fe', 'fea',) or '_then_' in args.algo:
         secondary_envs = []
         for i in range(args.procs):
-            env = utils.make_env(args.env, args.seed + 10000 * i)
+            # env = utils.make_env(args.env, args.seed + 10000 * i)
+            env = utils.make_env(args.env, seed=args.seed, num_procs=args.procs)
             secondary_envs.append(env)
     if args.algo in ('fea',):
         expert_envs = []
@@ -346,7 +351,8 @@ if __name__ == '__main__':
             render=args.render,
             override_switching_horizon=args.switching_horizon,
             uniform_exploration=args.uniform_exploration,
-            winning_target=winning_target
+            winning_target=winning_target,
+            algo_seed=int(args.algo_seed)
         )
     elif args.algo == 'ppo':
         algo = Distill(

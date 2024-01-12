@@ -7,22 +7,12 @@
 #SBATCH --exclude=iris5,iris6,iris7
 # only use the following on partition with GPUs
 #SBATCH --gres=gpu:1
-#SBATCH --job-name="construction"
+#SBATCH --job-name="ELF"
 #SBATCH --output=out/%j.out
 #SBATCH --time=72:0:0
 
 cd /iris/u/loganmb/impossibly-good-main
 source venv/bin/activate
 
-## ELF Envs
-# python scripts/train.py --algo='fe' --env='ImpossiblyGood-ExampleOne-5x5-v0' --render --eval-episodes=10
-# python scripts/train.py --algo='fe' --env='ImpossiblyGood-SingleBranch-v0' --render --eval-episodes=10
-# python scripts/train.py --algo='fe' --env='ImpossiblyGood-EarlyExplore3-v0' --render --eval-episodes=10
-# python scripts/train.py --algo='fe' --env='ImpossiblyGood-ExampleFourHard-9x9-v0' --render --eval-episodes=10
-
-## DREAM Envs
-# xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-TigerDoor-v0' --render --eval-argmax --eval-episodes=10 --discount=0.8
-# xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-LightDark-v0' --render --eval-argmax --eval-episodes=10 --discount=0.8
-# xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-NonstationaryMap-v0' --render --eval-argmax --eval-episodes=10 --discount=0.8
-# xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Map-v0' --render --eval-argmax --eval-episodes=10 --discount=0.8
-# xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Construction-v0' --render --eval-argmax --eval-episodes=10 --procs=1
+# LightDark
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-LightDark-v0' --render --eval-argmax --eval-frequency=5000 --eval-episodes=100 --procs=8 --algo-seed=0

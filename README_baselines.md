@@ -5,8 +5,8 @@ For debugging, just add `procs=1`
 # DEBUGGING
 
 ## Overcooked
-```
-xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Overcooked-v0' --render --eval-argmax --eval-episodes=10 --eval-frequency=1 --procs=1
+```bash
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Overcooked-v0' --render --eval-argmax --eval-episodes=10 --eval-frequency=1 --procs=1 --algo-seed=0
 ```
 
 ## Construction
@@ -15,14 +15,20 @@ xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" pytho
 ```
 
 ## Map
-```
+```bash
 xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-Map-v0' --render --eval-argmax --eval-episodes=10 --procs=1
 ```
 
 ## TigerDoor
+```bash
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-TigerDoor-v0' --render --eval-argmax --eval-episodes=10 --procs=1 --algo-seed=0
 ```
-xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-TigerDoor-v0' --render --eval-argmax --eval-episodes=10 --procs=1
+
+## LightDark
+```bash
+xvfb-run -a -s "-screen 0 1024x768x24 -ac +extension GLX +render -noreset" python scripts/train.py --algo='fe' --env='ImpossiblyGood-LightDark-v0' --render --eval-argmax --eval-episodes=10 --procs=1 --algo-seed=0
 ```
+
 
 ## DREAM Envs
 ```bash

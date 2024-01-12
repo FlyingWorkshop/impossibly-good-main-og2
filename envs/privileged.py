@@ -54,6 +54,8 @@ class PrivilegedGridEnv(grid.GridEnv):
         self._last_reward = None
         self._last_action = None
         self._rng = None
+        self._seed = None
+        self._num_procs = None
         self.max_steps = self._max_steps
 
     def _gen_privileged_info(self):
@@ -216,12 +218,17 @@ class PrivilegedGridEnv(grid.GridEnv):
         if hasattr(self, "_agent_pos"):
             self.last_render = self.render()
 
-        # create new env_id before calling super reset (which places objects)
         if seed is not None:
-            self._rng = np.random.RandomState(seed)
-        assert self._rng is not None
+            # seed is only specified when `make_env` is called in train.py
+            self._seed = seed
+        else:
+            # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
+            self._seed += self._num_procs
+
+        self._rng = np.random.RandomState(self._seed)
+
+        # create env_id before placing objects in `super()._reset`
         self._env_id = self.create_env_id(self._rng.randint(1e5))
-        
         obs = super()._reset()
 
         # rendering
