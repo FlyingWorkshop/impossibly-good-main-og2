@@ -14,7 +14,7 @@ class Action(enum.IntEnum):
     up = 1
     right = 2
     down = 3
-    # end_episode = 4
+    end_episode = 4
 
 
 class DummyInstructionWrapper(meta_exploration.InstructionWrapper):
@@ -28,7 +28,6 @@ class DummyInstructionWrapper(meta_exploration.InstructionWrapper):
         del test
         goal = np.array((0))
         return goal
-
 
 class PrivilegedGridEnv(grid.GridEnv):
     _gym_disable_underscore_compat = True
@@ -54,7 +53,7 @@ class PrivilegedGridEnv(grid.GridEnv):
         self._last_reward = None
         self._last_action = None
         self._rng = None
-        self._seed = None
+        self._our_seed = None
         self._num_procs = None
         self.max_steps = self._max_steps
 
@@ -213,29 +212,31 @@ class PrivilegedGridEnv(grid.GridEnv):
         }
         return gym.spaces.Dict(data)
 
-    def reset(self, seed=None):
-        # we do this render so that we capture the last timestep in episodes
-        if hasattr(self, "_agent_pos"):
-            self.last_render = self.render()
+    def reset(self):
+        return super()._reset()
+        # # we do this render so that we capture the last timestep in episodes
+        # if hasattr(self, "_agent_pos"):
+        #     self.last_render = self.render()
 
-        if seed is not None:
-            # seed is only specified when `make_env` is called in train.py
-            self._seed = seed
-        else:
-            # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
-            self._seed += self._num_procs
+        # if seed is not None:
+        #     # seed is only specified when `make_env` is called in train.py
+        #     self._seed = seed
+        # else:
+        #     # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
+        #     self._seed += self._num_procs
 
-        self._rng = np.random.RandomState(self._seed)
+        # # self._rng = np.random.RandomState(self._seed)
 
-        # create env_id before placing objects in `super()._reset`
-        self._env_id = self.create_env_id(self._rng.randint(1e5))
-        obs = super()._reset()
+        # # create env_id before placing objects in `super()._reset`
+        # self._env_id = 0
+        # # self._env_id = self.create_env_id(self._rng.randint(1e5))
+        # obs = super()._reset()
 
-        # rendering
-        self.last_reward = None
-        self.last_action = None
+        # # rendering
+        # self.last_reward = None
+        # self.last_action = None
 
-        return obs, {}
+        # return obs, {}
 
     def step(self, action):
         obs, reward, done, info = self._step(action)

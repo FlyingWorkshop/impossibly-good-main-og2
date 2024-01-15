@@ -48,10 +48,7 @@ class FEAlgo:
         override_switching_horizon = None,
         uniform_exploration = False,
         winning_target = 0.75,
-        algo_seed=None
-    ):
-        utils.seed(algo_seed)
-        
+    ):        
         self.expert_frames_per_proc = expert_frames_per_proc
         self.override_switching_horizon = override_switching_horizon
         

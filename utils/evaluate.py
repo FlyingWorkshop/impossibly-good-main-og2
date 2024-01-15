@@ -17,8 +17,8 @@ class Evaluator:
         preprocessor,
         render
     ):
-        seed = 1234567890
-        utils.seed(seed)
+        # seed = 1234567890
+        # utils.seed(seed)
         
         self.model = model
         self.device = device

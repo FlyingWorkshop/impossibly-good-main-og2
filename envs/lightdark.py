@@ -1,6 +1,7 @@
 import numpy as np
 
 from envs.privileged import PrivilegedGridEnv, Action
+from envs.grid import GridEnv
 
 
 class LightDarkEnv(PrivilegedGridEnv):
@@ -23,7 +24,7 @@ class LightDarkEnv(PrivilegedGridEnv):
 
     def _compute_optimal_action(self, pos):
         if np.array_equal(pos, self._goal):
-            optimal_action = None
+            optimal_action = Action.end_episode
         elif pos[0] < self._goal[0]:
             optimal_action = Action.right
         elif pos[0] > self._goal[0]:
@@ -58,11 +59,14 @@ class LightDarkEnv(PrivilegedGridEnv):
 
     @classmethod
     def env_ids(cls):
-        # remove the ID at the goal cell
-        ids = [
-            id for id in cls._ids
-            if not np.array_equal(cls._goal, np.divmod(id, cls._height))
-        ]
+        # remove the ID at the goal cell (in our case, it removes 12, since divmod(12, 5) == (2, 2) == goal)
+        ids = [id for id in cls._ids if not np.array_equal(cls._goal, np.divmod(id, cls._height))]
+        # ids = []
+        # for id in cls._ids:
+        #     if not np.array_equal(cls._goal, np.divmod(id, cls._height)):
+        #         ids.append(id)
+        #     else:
+        #         print(id)
         train_ids, test_ids = ids, ids
         return train_ids, test_ids
 
@@ -84,3 +88,32 @@ class LightDarkEnv(PrivilegedGridEnv):
                 image.draw_rectangle(np.array((x, y)), 0.5, "yellow")
         image.draw_rectangle(self._goal, 0.5, "green")
         return image
+    
+    def reset(self, seed=None):
+        # we do this render so that we capture the last timestep in episodes
+        if hasattr(self, "_agent_pos"):
+            self.last_render = self.render()
+
+        if seed is not None:
+            # seed is only specified when `make_env` is called in train.py
+            self._our_seed = seed
+        else:
+            # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
+            self._our_seed += self._num_procs
+
+        # lifted from `MetaExplorationEnv.create_env`
+        random = np.random.RandomState(self._our_seed)
+        train_ids, test_ids = self.env_ids()
+        split = train_ids  # train_ids and test_ids are the same for LightDark
+        env_id = random.randint(len(split))
+
+        # create env_id before placing objects in `super()._reset`
+        self._env_id = env_id
+        obs = super().reset()
+
+        # rendering
+        self.last_reward = None
+        self.last_action = None
+
+        return obs, {}
+

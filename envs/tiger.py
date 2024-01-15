@@ -34,7 +34,7 @@ class TigerDoorEnv(PrivilegedGridEnv):
         (2, 3): Action.down,
         (3, 1): Action.right,
         (3, 3): Action.left,
-        (4, 1): None,
+        (4, 1): Action.end_episode,
         (4, 3): Action.left
     }
 
@@ -50,7 +50,7 @@ class TigerDoorEnv(PrivilegedGridEnv):
         (3, 1): Action.left,
         (3, 3): Action.right,
         (4, 1): Action.left,
-        (4, 3): None
+        (4, 3): Action.end_episode
     }
 
     def __init__(self, env_id=0, wrapper=None, max_steps=20, mode=None):

@@ -41,9 +41,6 @@ register_vizdoom_envs()
 
 parser = argparse.ArgumentParser()
 
-# NOTE: Logan added parameters
-parser.add_argument("--algo-seed", required=True)
-
 # General parameters
 parser.add_argument("--algo", required=True,
                     help="algorithm to use: a2c | ppo | bc | opbc | fe (REQUIRED)")
@@ -352,7 +349,6 @@ if __name__ == '__main__':
             override_switching_horizon=args.switching_horizon,
             uniform_exploration=args.uniform_exploration,
             winning_target=winning_target,
-            algo_seed=int(args.algo_seed)
         )
     elif args.algo == 'ppo':
         algo = Distill(
