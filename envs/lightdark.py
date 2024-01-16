@@ -6,9 +6,7 @@ from envs.grid import GridEnv
 
 class LightDarkEnv(PrivilegedGridEnv):
     _goal = np.array((2, 2))
-    _height = 5
-    _width = _height
-
+    _height = _width = 5
     _dark_cols = _width - 1
     _ids = np.random.RandomState(seed=0).permutation(_dark_cols * _height)
 
@@ -59,14 +57,8 @@ class LightDarkEnv(PrivilegedGridEnv):
 
     @classmethod
     def env_ids(cls):
-        # remove the ID at the goal cell (in our case, it removes 12, since divmod(12, 5) == (2, 2) == goal)
+        # remove the ID at the goal cell
         ids = [id for id in cls._ids if not np.array_equal(cls._goal, np.divmod(id, cls._height))]
-        # ids = []
-        # for id in cls._ids:
-        #     if not np.array_equal(cls._goal, np.divmod(id, cls._height)):
-        #         ids.append(id)
-        #     else:
-        #         print(id)
         train_ids, test_ids = ids, ids
         return train_ids, test_ids
 
@@ -99,15 +91,13 @@ class LightDarkEnv(PrivilegedGridEnv):
             self._our_seed = seed
         else:
             # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
-            self._our_seed += self._num_procs
-
-        # lifted from `MetaExplorationEnv.create_env`
-        random = np.random.RandomState(self._our_seed)
-        train_ids, test_ids = self.env_ids()
-        split = train_ids  # train_ids and test_ids are the same for LightDark
-        env_id = random.randint(len(split))
+            if self._steps > 0:
+                self._our_seed += self._num_procs
 
         # create env_id before placing objects in `super()._reset`
+        random = np.random.RandomState(self._our_seed)
+        ids, _ = self.env_ids()
+        env_id = ids[random.randint(len(ids))]
         self._env_id = env_id
         obs = super().reset()
 

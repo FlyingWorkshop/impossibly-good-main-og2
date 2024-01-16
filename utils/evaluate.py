@@ -17,8 +17,8 @@ class Evaluator:
         preprocessor,
         render
     ):
-        # seed = 1234567890
-        # utils.seed(seed)
+        seed = 1234567890
+        utils.seed(seed)
         
         self.model = model
         self.device = device
@@ -30,9 +30,9 @@ class Evaluator:
         for i in range(num_procs):
             #if i == 0:
             # env = utils.make_env(env_name, seed + 10000*i)
-            env = utils.make_env(env_name, seed=i, num_procs=num_procs)
             #else:
-            #    env = DeferredWrapper(env_name, seed + 10000*i)
+            # env = DeferredWrapper(env_name, seed + 10000*i)
+            env = utils.make_env(env_name, seed=i, num_procs=num_procs)
             envs.append(env)
         
         self.env = ParallelEnv(envs)
@@ -51,6 +51,14 @@ class Evaluator:
         }
 
         obss = self.env.reset()
+
+        if self.render:
+            if isinstance(self.env.envs[0], (NonstationaryInstructionWrapper, InstructionWrapper)):
+                render = self.env.envs[0].env.render('human').image()
+            else:
+                render = self.env.envs[0].render('human').image()
+            renders.append(render)
+
         
         self.model.eval()
         
@@ -105,6 +113,8 @@ class Evaluator:
             
             for i, done in enumerate(dones):
                 if done:
+                    if done_count >= num_episodes:
+                        break
                     done_count += 1
                     log['return_per_episode'].append(episode_return[i].item())
                     log['num_frames_per_episode'].append(
