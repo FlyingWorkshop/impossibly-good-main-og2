@@ -115,3 +115,29 @@ class TigerDoorEnv(PrivilegedGridEnv):
         image.draw_rectangle(self._failure, 0.5, "blue")
         image.draw_rectangle(self._pink, 0.5, "pink")
         return image
+    
+    def reset(self, seed=None):
+        # we do this render so that we capture the last timestep in episodes
+        if hasattr(self, "_agent_pos"):
+            self.last_render = self.render()
+
+        if seed is not None:
+            # seed is only specified when `make_env` is called in train.py
+            self._our_seed = seed
+        else:
+            # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
+            if self._steps > 0:
+                self._our_seed += self._num_procs
+
+        # create env_id before placing objects in `super()._reset`
+        random = np.random.RandomState(self._our_seed)
+        ids, _ = self.env_ids()
+        env_id = ids[random.randint(len(ids))]
+        self._env_id = env_id
+        obs = super().reset()
+
+        # rendering
+        self.last_reward = None
+        self.last_action = None
+
+        return obs, {}
