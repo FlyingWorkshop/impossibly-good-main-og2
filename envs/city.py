@@ -88,7 +88,6 @@ class NonstationaryInstructionWrapper(InstructionWrapper):
     return super().reset(seed=seed)
 
 
-
 class CityGridEnv(grid.GridEnv):
   """Defines a city grid with bus stops at fixed locations.
 
@@ -199,6 +198,7 @@ class ELFMapGridEnv(MapGridEnv):
     self._rng = None
     self.max_steps = self._max_steps
     self.obs_len = 6
+    self._our_seed = None
 
   @property
   def observation_space(self):
@@ -217,12 +217,27 @@ class ELFMapGridEnv(MapGridEnv):
       if hasattr(self, "_agent_pos"):
           self.last_render = self.render()
 
-      # create new env_id before calling super reset (which places objects)
+      # # create new env_id before calling super reset (which places objects)
+      # if seed is not None:
+      #     self._rng = np.random.RandomState(seed)
+      # assert self._rng is not None
+      # self._env_id = self.create_env_id(self._rng.randint(1e5))
+          
+      # obs = self._reset()
+                  
       if seed is not None:
-          self._rng = np.random.RandomState(seed)
-      assert self._rng is not None
-      self._env_id = self.create_env_id(self._rng.randint(1e5))
-      
+        # seed is only specified when `make_env` is called in train.py
+        self._our_seed = seed
+      else:
+          # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
+          if self._steps > 0:
+              self._our_seed += self._num_procs  # NOTE: this is monkeypatched in during env creation
+
+      # create env_id before placing objects in `super()._reset`
+      random = np.random.RandomState(self._our_seed)
+      ids, _ = self.env_ids()
+      env_id = ids[random.randint(len(ids))]
+      self._env_id = env_id
       obs = self._reset()
 
       # rendering
@@ -367,8 +382,6 @@ class ELFMapGridEnv(MapGridEnv):
       return self._get_walking_directions(pos, target)
 
 
-
-
 class NonstationaryMapGridEnv(MapGridEnv):
   """Wrapper to create non-stationary GridEnv."""
   _gym_disable_underscore_compat = True
@@ -398,9 +411,10 @@ class NonstationaryMapGridEnv(MapGridEnv):
     # added for ELF
     self.last_action = None
     self.last_reward = None
-    self._rng = None
+    self._np_random = None
     self.max_steps = self._max_steps
     self.obs_len = 6
+    self._our_seed = None
 
   @property
   def action_space(self):
@@ -425,14 +439,14 @@ class NonstationaryMapGridEnv(MapGridEnv):
     episode_env_ids = []
     total_time = 0
     while total_time < self._max_steps:
-      if np.random.rand() < 0.25:
+      if self._np_random.rand() < 0.25:
         interval = 2
       else:
         interval = 3
       self._switch_intervals.append(interval)
 
       all_env_ids = self.env_ids()[0]
-      sampled_env_id = all_env_ids[np.random.randint(len(all_env_ids))]
+      sampled_env_id = all_env_ids[self._np_random.randint(len(all_env_ids))]
       self._env_ids.append(sampled_env_id)
       episode_env_ids.extend([sampled_env_id[0],] * interval)
       total_time += interval
@@ -467,12 +481,28 @@ class NonstationaryMapGridEnv(MapGridEnv):
       if hasattr(self, "_agent_pos"):
           self.last_render = self.render()
 
-      # create new env_id before calling super reset (which places objects)
-      if seed is not None:
-          self._rng = np.random.RandomState(seed)
-      assert self._rng is not None
-      self._env_id = self.create_env_id(self._rng.randint(1e5))
+      # # create new env_id before calling super reset (which places objects)
+      # if seed is not None:
+      #     self._rng = np.random.RandomState(seed)
+      # assert self._rng is not None
+      # self._env_id = self.create_env_id(self._rng.randint(1e5))
       
+      # obs = self._reset()
+      
+      if seed is not None:
+          # seed is only specified when `make_env` is called in train.py
+          self._our_seed = seed
+      else:
+          # reset is called w/o seed in `collect_experiences`, so we should increment by number of procs
+          if self._steps > 0:
+              self._our_seed += self._num_procs
+    
+      # create env_id before placing objects in `super()._reset`
+      random = np.random.RandomState(self._our_seed)
+      ids, _ = self.env_ids()
+      env_id = ids[random.randint(len(ids))]
+      self._env_id = env_id
+      self._np_random =  np.random.RandomState(env_id)
       obs = self._reset()
 
       # rendering
