@@ -5,6 +5,7 @@ from torch_ac.utils.penv import ParallelEnv
 import utils
 
 from envs.city import NonstationaryInstructionWrapper, InstructionWrapper
+from envs.construction import ELFConstructionEnv
 #from envs.env_wrappers import DeferredWrapper
 
 class Evaluator:
@@ -33,6 +34,8 @@ class Evaluator:
             #else:
             # env = DeferredWrapper(env_name, seed + 10000*i)
             env = utils.make_env(env_name, seed=i, num_procs=num_procs)
+            if isinstance(env, ELFConstructionEnv):
+                env._base_env.set_test(True)
             envs.append(env)
         
         self.env = ParallelEnv(envs)

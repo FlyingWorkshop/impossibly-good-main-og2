@@ -151,8 +151,7 @@ if __name__ == '__main__':
     if args.algo in ('fe', 'fea',) or '_then_' in args.algo:
         secondary_envs = []
         for i in range(args.procs):
-            # env = utils.make_env(args.env, args.seed + 10000 * i)
-            env = utils.make_env(args.env, seed=args.seed, num_procs=args.procs)
+            env = utils.make_env(args.env, seed=i, num_procs=args.procs)
             secondary_envs.append(env)
     if args.algo in ('fea',):
         expert_envs = []
@@ -631,14 +630,17 @@ if __name__ == '__main__':
 
     # Train model
 
+    # NOTE: added this
     num_frames = status["num_frames"]
     new_completed_episodes = 0
     total_completed_episodes = 0
+    max_episodes = 105000
     update = status["update"]
     start_time = time.time()
     
     try:
-        while num_frames < args.frames:
+        # while num_frames < args.frames:
+        while total_completed_episodes < max_episodes:
             # Update model parameters
             
             update_start_time = time.time()
@@ -736,7 +738,7 @@ if __name__ == '__main__':
                 _, eval_follower_renders = evaluator2.evaluate(args.eval_episodes, args.eval_argmax)
                 eval_log['num_frame'] = num_frames
 
-                # TODO: changed this from num_frames to total_completed_episodes
+                # NOTE: changed this from num_frames to total_completed_episodes
                 return_stats = eval_log['return_stats']
                 tb_writer.add_scalar(
                     'eval_return_mean', return_stats['mean'], total_completed_episodes)

@@ -2,6 +2,7 @@ import gym
 import gym_minigrid
 
 from envs.env_wrappers import ProcessFrame
+from envs.construction import ELFConstructionEnv
 
 def make_env(env_key, num_procs, seed=None):
     env = gym.make(env_key, disable_env_checker=True)
