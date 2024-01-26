@@ -3,11 +3,12 @@ import numpy as np
 import functools
 
 
-ONION_POS = [3, 2]
+ONION_POS = [3, 1]
 ONION_DIR = 0
-TOMATO_POS = [2, 2]
-TOMATO_DIR = 0
+TOMATO_POS = [3, 3]
+TOMATO_DIR = 1
 
+# TODO: these can be removed
 DISH_POS = [1, 2]
 DISH_DIR = 3
 POT_POS = [3, 2]

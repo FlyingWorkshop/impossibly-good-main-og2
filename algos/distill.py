@@ -10,6 +10,7 @@ from torch.distributions import Categorical
 from torch_ac.utils import DictList, ParallelEnv
 from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
+from envs.asymmetric_advantages import ELFOvercooked
 from envs.city import NonstationaryInstructionWrapper, InstructionWrapper
 from envs.construction import ELFConstructionEnv
 
@@ -271,7 +272,7 @@ class Distill:
                         value_before_update.detach().cpu().numpy())
             
             if self.render:
-                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, ELFConstructionEnv)):
+                if isinstance(self.env.envs[0], (TigerDoorEnv, LightDarkEnv, ELFConstructionEnv, ELFOvercooked)):
                     render = self.env.envs[0].render('human').image()
                     renders.append(render)
                 elif isinstance(self.env.envs[0], (NonstationaryInstructionWrapper, InstructionWrapper)):

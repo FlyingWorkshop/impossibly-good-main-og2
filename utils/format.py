@@ -80,7 +80,7 @@ def get_obss_preprocessor(obs_space, image_dtype=torch.float):
         "observation" in obs_space.spaces.keys()
     ):
     
-        def preprocess_obss(obss, device=None):            
+        def preprocess_obss(obss, device=None):  
             processed = {
                 "observation": preprocess_long(
                     numpy.array([obs['observation'] for obs in obss]),

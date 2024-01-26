@@ -26,6 +26,7 @@ from envs.tiger import TigerDoorEnv
 from envs.lightdark import LightDarkEnv
 from envs.city import NonstationaryInstructionWrapper, InstructionWrapper
 from envs.construction import ELFConstructionEnv
+from envs.asymmetric_advantages import ELFOvercooked
 
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
 def init_params(m):
@@ -53,7 +54,8 @@ class DREAMEncoder(Module):
         LightDarkEnv: GridEncoder,
         TigerDoorEnv: GridEncoder,
         NonstationaryInstructionWrapper: GridEncoder,
-        InstructionWrapper: GridEncoder
+        InstructionWrapper: GridEncoder,
+        ELFOvercooked: GridEncoder
     }
 
     def __init__(self, env, embedding_channels=16):
@@ -183,7 +185,7 @@ class ImpossiblyGoodACModel(Module):
     ):
         super().__init__()
 
-        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper, ELFConstructionEnv, InstructionWrapper)):
+        if isinstance(env, (TigerDoorEnv, LightDarkEnv, NonstationaryInstructionWrapper, ELFConstructionEnv, InstructionWrapper, ELFOvercooked)):
             self.encoder = DREAMEncoder(env, embedding_channels=embedding_channels)
         else:
             self.encoder = ImpossiblyGoodEmbeddingEncoder(
