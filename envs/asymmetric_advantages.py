@@ -252,10 +252,11 @@ class ELFOvercooked(Overcooked):
             self._our_seed += self._num_procs
 
     # create env_id before placing objects in `super()._reset`
-    random = np.random.RandomState(self._our_seed)
-    ids, _ = self.env_ids()
-    env_id = ids[random.randint(len(ids))]
-    self._env._env_id = env_id
+    # random = np.random.RandomState(self._our_seed)
+    # ids, _ = self.env_ids()
+    # env_id = ids[random.randint(len(ids))]
+    # self._env._env_id = env_id
+    self._env._np_random = np.random.RandomState(self._our_seed)
     obs = self._process_obs(self._reset())
 
     # rendering
