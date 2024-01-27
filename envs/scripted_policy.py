@@ -1,6 +1,7 @@
 import enum
 import numpy as np
 import functools
+from . import policy
 
 
 ONION_POS = [3, 1]
@@ -16,6 +17,17 @@ POT_DIR = 2
 STATION_POS = [3, 3]
 STATION_DIR = 1
 
+ONION_POS_FOR_P1 = [6, 2]
+ONION_DIR_FOR_P1 = 0
+TOMATO_POS_FOR_P1 = [5, 2]
+TOMATO_DIR_FOR_P1 = 0
+POT_POS_FOR_P1 = [5, 2]
+POT_DIR_FOR_P1 = 3
+DISH_POS_FOR_P1 = [5, 3]
+DISH_DIR_FOR_P1 = 3
+STATION_POS_FOR_P1 = [5, 3]
+STATION_DIR_FOR_P1 = 1
+
 
 class Action(enum.IntEnum):
     north = 0
@@ -25,6 +37,91 @@ class Action(enum.IntEnum):
     stay = 4
     interact = 5
     end_episode = 6
+
+
+class P1_DemoPolicy(policy.Policy):
+    def __init__(self, env):
+        self._env = env
+        self._filled_ingredient = False
+
+    def reset(self):
+        self._filled_ingredient = False
+
+    def act(self, state, hidden_state, test):
+        obj = self._env._p2_policy.get_type()
+        return self.fill_and_serve_policy(self._env._last_obs, obj), None
+
+    def fill_and_serve_policy(self, obs, obj):
+        pos = obs['both_agent_obs'][0][-2:]
+        direction = obs['both_agent_obs'][0][:4]
+
+        cooking = bool(obs['both_agent_obs'][0][25])
+        holding_plate = obs['both_agent_obs'][0][4:8][2]
+        soup_ready = bool(obs['both_agent_obs'][0][26])
+        holding_soup = obs['both_agent_obs'][0][4:8][1]
+
+        # CHECK FOR ENOUGH INGREDIENTS
+        if obj == 0:    # 0 corresponds to onion
+            enough_ingredients = obs['both_agent_obs'][0][27] == 3
+        else:
+            enough_ingredients = obs['both_agent_obs'][0][28] == 3
+
+        if holding_soup:
+            self._filled_ingredient = False
+            return go_to_and_face(
+                pos, direction, STATION_POS_FOR_P1, STATION_DIR_FOR_P1, interact=True)
+        elif soup_ready and holding_plate:
+            return go_to_and_face(
+                pos, direction, POT_POS_FOR_P1, POT_DIR_FOR_P1, interact=True)
+        elif holding_plate:
+            return go_to_and_face(
+                pos, direction, POT_POS_FOR_P1, POT_DIR_FOR_P1, interact=True)
+        elif cooking or soup_ready:
+            return go_to_and_face(
+                pos, direction, DISH_POS_FOR_P1, DISH_DIR_FOR_P1, interact=True)
+        elif enough_ingredients:
+            # Start cooking
+            return Action.interact
+        elif not self._filled_ingredient:
+            if obj == 0:
+                action, done = self.fill_onion_policy(obs)
+                if done:
+                    self._filled_ingredient = True
+                return action
+            else:
+                action, done = self.fill_tomato_policy(obs)
+                if done:
+                    self._filled_ingredient = True
+                return action
+        return Action.stay
+
+    def fill_onion_policy(self, obs):
+        pos = obs['both_agent_obs'][0][-2:]
+        direction = obs['both_agent_obs'][0][:4]
+        holding_onion = obs['both_agent_obs'][0][4:8][0]
+        at_pot = np.array_equal(pos, POT_POS_FOR_P1) and direction[POT_DIR_FOR_P1] == 1
+        if not holding_onion:
+            return go_to_and_face(
+                pos, direction, ONION_POS_FOR_P1, ONION_DIR_FOR_P1, interact=True), False
+        else:
+            if at_pot and holding_onion:
+                return Action.interact, True
+            return go_to_and_face(
+                pos, direction, POT_POS_FOR_P1, POT_DIR_FOR_P1, interact=False), False
+
+    def fill_tomato_policy(self, obs):
+        pos = obs['both_agent_obs'][0][-2:]
+        direction = obs['both_agent_obs'][0][:4]
+        holding_tomato = obs['both_agent_obs'][0][4:8][-1]
+        at_pot = np.array_equal(pos, POT_POS_FOR_P1) and direction[POT_DIR_FOR_P1] == 1
+        if not holding_tomato:
+            return go_to_and_face(
+                pos, direction, TOMATO_POS_FOR_P1, TOMATO_DIR_FOR_P1, interact=True), False
+        else:
+            if at_pot and holding_tomato:
+                return Action.interact, True
+            return go_to_and_face(
+                pos, direction, POT_POS_FOR_P1, POT_DIR_FOR_P1, interact=False), False
 
 
 def go_to_and_face(pos, dir, target_pos, target_dir, interact=False):

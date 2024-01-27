@@ -8,6 +8,8 @@ import gym
 
 import utils
 
+from envs.asymmetric_advantages import Action
+
 
 def get_obss_preprocessor(obs_space, image_dtype=torch.float):
     # Check if obs_space is an image space
@@ -80,7 +82,14 @@ def get_obss_preprocessor(obs_space, image_dtype=torch.float):
         "observation" in obs_space.spaces.keys()
     ):
     
-        def preprocess_obss(obss, device=None):  
+        def preprocess_obss(obss, device=None):
+
+            # handle overcooked actions (remove this if running any other experiments!!!!)
+            first_obs = obss[0]
+            if isinstance(first_obs["expert"], tuple):
+                for obs in obss:
+                    obs["expert"] = obs["expert"][0]
+
             processed = {
                 "observation": preprocess_long(
                     numpy.array([obs['observation'] for obs in obss]),

@@ -12,7 +12,7 @@ from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 # from envs.overcooked.scripted_policy import P2_Policy, Action
 
 from . import render, privileged, meta_exploration
-from envs.scripted_policy import P2_Policy, Action
+from envs.scripted_policy import P1_DemoPolicy, P2_Policy, Action
 
 class Overcooked1P(object):
   def __init__(self, seed, wrapper):
@@ -238,6 +238,9 @@ class ELFOvercooked(Overcooked):
     self._our_seed = None
     self.max_steps = self._env._max_steps
 
+    # demo policy
+    self._expert = P1_DemoPolicy(self._env)
+
   def reset(self, seed=None):
     # we do this render so that we capture the last timestep in episodes
     # if hasattr(self, "_agent_pos"):
@@ -264,6 +267,9 @@ class ELFOvercooked(Overcooked):
     self.last_reward = None
     self.last_action = None
 
+    # expert
+    self._expert.reset()
+
     return obs, {}
   
   def step(self, action):
@@ -272,10 +278,10 @@ class ELFOvercooked(Overcooked):
     return obs, reward, done, done, info
   
   def _process_obs(self, obs):
-    # optimal_action = self._compute_optimal_action(self.agent_pos)
-    optimal_action = Action.east
+    optimal_action = self._compute_optimal_action()
     obs = {"observation": obs, "expert": optimal_action, "step": self._env._steps}
     return obs
   
-  def _compute_optimal_action(self, pos: np.ndarray):
-    raise NotImplementedError
+  def _compute_optimal_action(self):
+    dummy = -1
+    return self._expert.act(dummy, dummy, dummy)
